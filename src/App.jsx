@@ -1,7 +1,12 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { ChevronRight, ChevronDown, Circle, CheckCircle2, AlertTriangle, Radio, Target, ClipboardList, LayoutGrid, X, Loader2, Gauge, Download, Repeat } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from "recharts";
-import { getItem, setItem } from "./storage.js";
+import {
+  getIdentity, setIdentity as saveIdentityToSheet,
+  getAllActivityUpdates, setActivityUpdate,
+  getAllIndicatorStatuses, setIndicatorStatus as saveIndicatorStatusToSheet,
+  rememberEmail, getRememberedEmail,
+} from "./storage.js";
 import { renderGoogleSignIn } from "./googleAuth.js";
 
 /* ============================== DATA ============================== */
@@ -153,56 +158,6 @@ function confidenceInfo(v) {
   if (v <= 7) return { label: "Moderate", color: C.amber, bg: C.amberBg };
   if (v <= 9) return { label: "On track", color: C.green, bg: C.greenBg };
   return { label: "Achieved", color: C.green, bg: C.greenBg };
-}
-
-/* ============================== STORAGE HELPERS ============================== */
-// Personal storage now needs the signed-in user's email to scope data to them
-// (there's no per-session sandbox like the Claude artifact had). We keep the
-// email in localStorage ONLY to remember who's signed in between visits —
-// no app data lives there, it's just "who am I" so we don't force a fresh
-// Google sign-in every time. Swap this for a proper session/cookie if you
-// want something more robust.
-
-const LAST_EMAIL_KEY = "gndr-meal-last-email";
-
-export function rememberEmail(email) {
-  try { localStorage.setItem(LAST_EMAIL_KEY, email); } catch (e) {}
-}
-export function getRememberedEmail() {
-  try { return localStorage.getItem(LAST_EMAIL_KEY); } catch (e) { return null; }
-}
-
-async function loadShared(key, fallback) {
-  try {
-    const res = await getItem(key, true);
-    return res ? JSON.parse(res.value) : fallback;
-  } catch (e) {
-    return fallback;
-  }
-}
-async function saveShared(key, value) {
-  try {
-    await setItem(key, JSON.stringify(value), true);
-    return true;
-  } catch (e) {
-    return false;
-  }
-}
-async function loadPersonal(key, fallback, ownerEmail) {
-  try {
-    const res = await getItem(key, false, ownerEmail);
-    return res ? JSON.parse(res.value) : fallback;
-  } catch (e) {
-    return fallback;
-  }
-}
-async function savePersonal(key, value, ownerEmail) {
-  try {
-    await setItem(key, JSON.stringify(value), false, ownerEmail);
-    return true;
-  } catch (e) {
-    return false;
-  }
 }
 
 /* ============================== SMALL UI PIECES ============================== */
@@ -985,7 +940,7 @@ function ProgressNoteForm({ output, onAdd, identity }) {
   );
 }
 
-function TargetsView({ progress, onAddProgress, identity }) {
+function TargetsView({ identity }) {
   const [openId, setOpenId] = useState(null);
   const [openSi, setOpenSi] = useState(null);
   const goals = ["Goal 1", "Goal 2", "Goal 3"];
@@ -1548,7 +1503,6 @@ export default function App() {
   const [loadingIdentity, setLoadingIdentity] = useState(true);
   const [view, setView] = useState("targets");
   const [updates, setUpdates] = useState({});
-  const [progress, setProgress] = useState({});
   const [indicatorStatus, setIndicatorStatus] = useState({});
   const [ready, setReady] = useState(false);
 
@@ -1564,16 +1518,45 @@ export default function App() {
     (async () => {
       const rememberedEmail = getRememberedEmail();
       if (rememberedEmail) {
-        const savedIdentity = await loadPersonal("identity", null, rememberedEmail);
-        if (savedIdentity) setIdentity(savedIdentity);
+        const savedIdentity = await getIdentity(rememberedEmail);
+        if (savedIdentity) {
+          setIdentity({ name: savedIdentity.name, email: savedIdentity.email, team: savedIdentity.team });
+        }
       }
       setLoadingIdentity(false);
-      const u = await loadShared("workplan-updates", {});
-      const p = await loadShared("workplan-progress", {});
-      const s = await loadShared("indicator-status", {});
+
+      // Activity updates: flat rows -> { [activityRow]: { [quarter]: payload } }
+      const activityRows = await getAllActivityUpdates();
+      const u = {};
+      activityRows.forEach((r) => {
+        if (!r.activity_row || !r.quarter) return;
+        u[r.activity_row] = u[r.activity_row] || {};
+        u[r.activity_row][r.quarter] = {
+          plan: r.plan, whatHappened: r.what_happened, adaptation: r.adaptation,
+          confidence: r.confidence === "" ? null : Number(r.confidence),
+          updatedBy: r.updated_by, updatedTeam: "", updatedAt: r.updated_at,
+        };
+      });
       setUpdates(u);
-      setProgress(p);
+
+      // Indicator statuses: flat rows -> { [si-letter]: statusObject }
+      const indicatorRows = await getAllIndicatorStatuses();
+      const s = {};
+      indicatorRows.forEach((r) => {
+        if (!r.si || !r.letter) return;
+        let entries = [];
+        try { entries = r.entries_json ? JSON.parse(r.entries_json) : []; } catch (e) {}
+        s[`${r.si}-${r.letter}`] = {
+          rag: r.rag || "not-started",
+          entries,
+          denominator: r.denominator || "",
+          dataSource: r.data_source ? String(r.data_source).split("; ").filter(Boolean) : [],
+          observations: r.observations || "",
+          updatedBy: r.updated_by, updatedAt: r.updated_at,
+        };
+      });
       setIndicatorStatus(s);
+
       setReady(true);
     })();
   }, []);
@@ -1581,32 +1564,34 @@ export default function App() {
   const handleSelectIdentity = async (id) => {
     setIdentity(id);
     rememberEmail(id.email);
-    await savePersonal("identity", id, id.email);
+    await saveIdentityToSheet(id);
   };
 
   const handleSaveUpdate = useCallback(async (row, quarter, payload) => {
     setUpdates((prev) => {
       const next = { ...prev, [row]: { ...(prev[row] || {}), [quarter]: payload } };
-      saveShared("workplan-updates", next);
       return next;
     });
-  }, []);
-
-  const handleAddProgress = useCallback(async (outputId, entry) => {
-    setProgress((prev) => {
-      const next = { ...prev, [outputId]: [...(prev[outputId] || []), entry] };
-      saveShared("workplan-progress", next);
-      return next;
+    await setActivityUpdate({
+      activityRow: row, quarter,
+      plan: payload.plan, whatHappened: payload.whatHappened, adaptation: payload.adaptation,
+      confidence: payload.confidence, updatedBy: payload.updatedBy, updatedByEmail: identity?.email,
     });
-  }, []);
+  }, [identity]);
 
   const handleSaveIndicatorStatus = useCallback(async (key, payload) => {
     setIndicatorStatus((prev) => {
       const next = { ...prev, [key]: payload };
-      saveShared("indicator-status", next);
       return next;
     });
-  }, []);
+    const [si, letter] = key.split("-");
+    await saveIndicatorStatusToSheet({
+      si, letter, rag: payload.rag, reportedValue: payload.count,
+      denominator: payload.denominator, dataSource: (payload.dataSource || []).join("; "),
+      observations: payload.observations, entriesJson: JSON.stringify(payload.entries || []),
+      updatedBy: payload.updatedBy, updatedByEmail: identity?.email,
+    });
+  }, [identity]);
 
   if (loadingIdentity || !ready) {
     return (
@@ -1728,7 +1713,7 @@ export default function App() {
         )}
         {view === "all" && <AllActivitiesView updates={updates} />}
         {view === "targets" && (
-          <TargetsView progress={progress} onAddProgress={handleAddProgress} identity={identity} />
+          <TargetsView identity={identity} />
         )}
         {view === "dashboard" && (
           <IndicatorDashboardView statuses={indicatorStatus} onSave={handleSaveIndicatorStatus} identity={identity} />
