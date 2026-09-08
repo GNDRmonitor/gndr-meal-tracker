@@ -1,25 +1,14 @@
 // storage.js
-// Drop-in replacement for the Claude-artifact "window.storage" API, backed by
-// a Google Sheet through a Google Apps Script Web App.
-//
-// Setup: after deploying the Apps Script (see /apps-script/Code.gs and the
-// README), paste the Web App URL below.
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycby6B5-8BUArE_wSJWk86IgXsvMLVDoA4nU1jwXLvxTQxHpW4Y_Djtzxr4PWkEu0vl4V/exec";
 
-const APPS_SCRIPT_URL = "https://script.google.com/a/macros/gndr.org/s/AKfycby6B5-8BUArE_wSJWk86IgXsvMLVDoA4nU1jwXLvxTQxHpW4Y_Djtzxr4PWkEu0vl4V/exec";
-
-/**
- * Shared data is visible to everyone on the team (e.g. workplan-updates,
- * indicator-status). Personal data is scoped to the signed-in user's email
- * (e.g. their remembered identity/team choice) and passed in via `ownerEmail`.
- */
 async function callAppsScript(payload) {
+  const params = new URLSearchParams();
+  Object.entries(payload).forEach(([k, v]) => {
+    if (v !== undefined && v !== null) params.append(k, String(v));
+  });
   const res = await fetch(APPS_SCRIPT_URL, {
     method: "POST",
-    // Apps Script Web Apps don't support custom headers well with CORS,
-    // so we keep this a "simple request" (text/plain body, parsed as JSON
-    // on the Apps Script side).
-    headers: { "Content-Type": "text/plain;charset=utf-8" },
-    body: JSON.stringify(payload),
+    body: params,
   });
   if (!res.ok) {
     throw new Error(`Storage request failed: ${res.status}`);
