@@ -139,11 +139,11 @@ export async function getAllProjects() {
   }
 }
 
-export async function setProject({ projectId, projectName, countries, donor, partners, updatedBy, updatedByEmail }) {
+export async function setProject({ projectId, projectName, countries, donor, partners, duration, phase, updatedBy, updatedByEmail }) {
   try {
     await callAppsScript({
       action: "projects_set",
-      project_id: projectId, project_name: projectName, countries, donor, partners,
+      project_id: projectId, project_name: projectName, countries, donor, partners, duration, phase,
       updated_by: updatedBy, updated_by_email: updatedByEmail,
     });
     return true;
