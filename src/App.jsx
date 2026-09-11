@@ -1,10 +1,13 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { ChevronRight, ChevronDown, Circle, CheckCircle2, AlertTriangle, Radio, Target, ClipboardList, LayoutGrid, X, Loader2, Gauge, Download, Repeat } from "lucide-react";
+import { ChevronRight, ChevronDown, Circle, CheckCircle2, AlertTriangle, Radio, Target, ClipboardList, LayoutGrid, X, Loader2, Gauge, Download, Repeat, Lock, MapPin, Globe2 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from "recharts";
+import * as d3 from "d3";
 import {
   getIdentity, setIdentity as saveIdentityToSheet,
   getAllActivityUpdates, setActivityUpdate,
   getAllIndicatorStatuses, setIndicatorStatus as saveIndicatorStatusToSheet,
+  getAllActivityMeta, setActivityMeta,
+  getAllProjects, setProject,
   rememberEmail, getRememberedEmail,
 } from "./storage.js";
 import { renderGoogleSignIn } from "./googleAuth.js";
@@ -12,111 +15,111 @@ import { renderGoogleSignIn } from "./googleAuth.js";
 /* ============================== DATA ============================== */
 
 const ACTIVITIES = [
-  {row:4,si:"SI 1.1",output:"Output 1.1.1",activity:"Collection of community practices, case studies and member/community-led storytelling from GNDR projects",owner:"Programmes",confirmed:false},
-  {row:5,si:"SI 1.1",output:"Output 1.1.2",activity:"LLAA Cookbook",owner:"Regional Leads",confirmed:false},
-  {row:6,si:"SI 1.1",output:"Output 1.1.2",activity:"HuT close-out knowledge products",owner:"Regional Leads",confirmed:false},
-  {row:7,si:"SI 1.1",output:"Output 1.1.2",activity:"Guidance and tools developed under LRF project",owner:"Programmes",confirmed:false},
-  {row:8,si:"SI 1.1",output:"Output 1.1.2",activity:"Women-led innovative anticipatory action — Indonesia & Philippines (finalisation, completed Q1)",owner:"Programmes",confirmed:false},
-  {row:9,si:"SI 1.1",output:"Output 1.1.3",activity:"LRF community-led landslide resilience (Ethiopia & Nepal)",owner:"Programmes",confirmed:false},
-  {row:10,si:"SI 1.1",output:"Output 1.1.3",activity:"Stakeholder Needs Assessment Report developed for Nepal and Ethiopia (2 reports)",owner:"Programmes",confirmed:false},
-  {row:11,si:"SI 1.1",output:"Output 1.1.3",activity:"Capacity building of local actors on early warnings and actions in Nepal and Ethiopia (initiated, 7 communities)",owner:"Programmes",confirmed:false},
-  {row:12,si:"SI 1.1",output:"Output 1.1.3",activity:"Capacity building of local actors on early warnings and actions in Nepal and Ethiopia (completed, 7 communities)",owner:"Programmes",confirmed:false},
-  {row:13,si:"SI 1.1",output:"Output 1.1.3",activity:"Harnessing Technology for Climate-Smart Landslide Detection — Kyrgyzstan",owner:"Programmes",confirmed:false},
-  {row:14,si:"SI 1.1",output:"Output 1.1.3",activity:"Community survey and consultation in 5 communities / needs and feasibility services",owner:"Programmes",confirmed:false},
-  {row:15,si:"SI 1.1",output:"Output 1.1.3",activity:"Development of early warning protocols in 5 communities through community workshops",owner:"Programmes",confirmed:false},
-  {row:16,si:"SI 1.1",output:"Output 1.1.3",activity:"Nature-based solutions — Pacific Circle (Tonga & Kiribati)",owner:"Programmes",confirmed:false},
-  {row:17,si:"SI 1.2",output:"Output 1.2.1",activity:"Participatory Needs Assessments under Kiwa Project",owner:"Programmes",confirmed:false},
-  {row:18,si:"SI 1.2",output:"Output 1.2.1",activity:"Needs Assessment under Climate-Smart Landslide Detection (Kyrgyzstan)",owner:"Programmes",confirmed:false},
-  {row:19,si:"SI 1.2",output:"Output 1.2.1",activity:"New iteration of Views from the Frontline (VFL) — partnership building, fundraising, programme design & the VFL platform",owner:"FRIMCO + Programmes",confirmed:true},
-  {row:20,si:"SI 1.2",output:"Output 1.2.2",activity:"REAP system-mapping evidence shared into the partnership",owner:"FRIMCO",confirmed:false},
-  {row:21,si:"SI 1.2",output:"Output 1.2.2",activity:"Member-led initiatives showcased on GNDR platforms",owner:"Membership Engagement",confirmed:false},
-  {row:22,si:"SI 1.2",output:"Output 1.2.3",activity:"Policy Briefs for COP31",owner:"Policy",confirmed:false},
-  {row:23,si:"SI 1.2",output:"Output 1.2.3",activity:"Contributions in PPED discussions",owner:"Policy",confirmed:false},
-  {row:24,si:"SI 1.2",output:"Output 1.2.3",activity:"Evidence, summaries and presentations at global and regional forums",owner:"Policy",confirmed:false},
-  {row:25,si:"SI 1.2",output:"Output 1.2.3",activity:"Targeted engagement with national governments (LRF Ethiopia & Nepal, Kyrgyzstan; ADPC-UNDP Ethiopia & Togo)",owner:"Policy",confirmed:false},
-  {row:26,si:"SI 2.1",output:"Output 2.1.1",activity:"Regionalisation of the Global Strategy 2026-2030",owner:"Regional Leads",confirmed:false},
-  {row:27,si:"SI 2.1",output:"Output 2.1.1",activity:"Locally-led delivery advanced in all three regions",owner:"Regional Leads",confirmed:false},
-  {row:30,si:"SI 2.1",output:"Output 2.1.1",activity:"Region's locally-led delivery and government engagement",owner:"Regional Leads",confirmed:false},
-  {row:31,si:"SI 2.1",output:"Output 2.1.2",activity:"Local Leadership Academy (member-led webinars and learning exchanges, incl. Peru replication)",owner:"Membership Engagement",confirmed:false},
-  {row:32,si:"SI 2.1",output:"Output 2.1.2",activity:"Local Leadership Academy: specific topics to be defined for in-house training (no budget for external trainers)",owner:"Membership Engagement",confirmed:false},
-  {row:33,si:"SI 2.1",output:"Output 2.1.2",activity:"6 member-led webinars delivered with 300 members participating, + 3 NFP webinars",owner:"Membership Engagement",confirmed:false},
-  {row:34,si:"SI 2.1",output:"Output 2.1.2",activity:"Region's share of LLA webinars & learning exchanges delivered with members (Africa & West Asia)",owner:"Regional Leads",confirmed:true},
-  {row:35,si:"SI 2.1",output:"Output 2.1.2",activity:"Region's share of LLA webinars & learning exchanges delivered with members (Asia & Europe)",owner:"Regional Leads",confirmed:true},
-  {row:36,si:"SI 2.1",output:"Output 2.1.3",activity:"Pre-Evacuation Platform (LAC)",owner:"Regional Leads",confirmed:false},
-  {row:37,si:"SI 2.1",output:"Output 2.1.3",activity:"Region's locally-led delivery (incl. IN/IOM and PEP)",owner:"Regional Leads",confirmed:false},
-  {row:38,si:"SI 2.2",output:"Output 2.2.1",activity:"Co-created advocacy briefs returned to members",owner:"Policy",confirmed:false},
-  {row:39,si:"SI 2.2",output:"Output 2.2.1",activity:"SEM and PPED engagement for the Sendai framework's successor",owner:"Policy",confirmed:false},
-  {row:40,si:"SI 2.2",output:"Output 2.2.2",activity:"SEM and PPED engagement (post-Sendai)",owner:"Policy",confirmed:false},
-  {row:41,si:"SI 2.2",output:"Output 2.2.2",activity:"Collaboration with UNDRR",owner:"Policy",confirmed:false},
-  {row:42,si:"SI 2.2",output:"Output 2.2.2",activity:"UNFCCC SB64 and COP31",owner:"Policy",confirmed:false},
-  {row:43,si:"SI 2.2",output:"Output 2.2.2",activity:"EU, South Asia, Africa and LAC regional policy forums",owner:"Policy",confirmed:false},
-  {row:44,si:"SI 2.2",output:"Output 2.2.2",activity:"GNDR profiled in non-DRR spaces",owner:"FRIMCO",confirmed:false},
-  {row:45,si:"SI 2.2",output:"Output 2.2.2",activity:"REAP board and policy engagement",owner:"Policy",confirmed:false},
-  {row:46,si:"SI 2.2",output:"Output 2.2.2",activity:"Engagement in SOFF processes, Concord and Bond UK",owner:"ED",confirmed:false},
-  {row:47,si:"SI 2.2",output:"Output 2.2.3",activity:"Disaster risk financing research findings used in advocacy",owner:"Policy",confirmed:false},
-  {row:48,si:"SI 2.2",output:"Output 2.2.3",activity:"Engagement with multilateral and financing actors",owner:"FRIMCO",confirmed:false},
-  {row:49,si:"SI 2.2",output:"Output 2.2.3",activity:"Give Us One Day campaign as the advocacy ask for trust-based EWS financing (co-led with REAP)",owner:"FRIMCO",confirmed:false},
-  {row:50,si:"SI 2.2",output:"Output 2.2.3",activity:"IDDRR, DRR-financing and women-in-DRR visibility",owner:"Policy",confirmed:false},
-  {row:51,si:"SI 3.1",output:"Output 3.1.1",activity:"Strategy launch and strategic communications",owner:"FRIMCO",confirmed:false},
-  {row:52,si:"SI 3.1",output:"Output 3.1.1",activity:"Member and community-led storytelling",owner:"FRIMCO",confirmed:false},
-  {row:53,si:"SI 3.1",output:"Output 3.1.1",activity:"Reimagined Annual Report",owner:"FRIMCO",confirmed:false},
-  {row:54,si:"SI 3.1",output:"Output 3.1.1",activity:"Public-facing visual network map",owner:"FRIMCO",confirmed:false},
-  {row:55,si:"SI 3.1",output:"Output 3.1.1",activity:"Communications embedded in projects (KR5)",owner:"FRIMCO",confirmed:false},
-  {row:56,si:"SI 3.1",output:"Output 3.1.2",activity:"RAG and National Coordination meetings across all regions",owner:"To confirm",confirmed:true},
-  {row:58,si:"SI 3.1",output:"Output 3.1.2",activity:"Global Board engagement and performance KPIs",owner:"ED",confirmed:false},
-  {row:59,si:"SI 3.1",output:"Output 3.1.2",activity:"Region's RAG, NCM and NFP delivery (Africa & West Asia)",owner:"Regional Leads",confirmed:false},
-  {row:60,si:"SI 3.1",output:"Output 3.1.2",activity:"Region's RAG, NCM and NFP delivery (Asia & Europe)",owner:"Regional Leads",confirmed:false},
-  {row:61,si:"SI 3.1",output:"Output 3.1.2",activity:"Region's RAG, NCM and NFP delivery (Americas & Caribbean)",owner:"Regional Leads",confirmed:false},
-  {row:62,si:"SI 3.1",output:"Output 3.1.3",activity:"Community Platform; improved member-data quality",owner:"Membership Engagement",confirmed:false},
-  {row:63,si:"SI 3.1",output:"Output 3.1.3",activity:"Annual member survey",owner:"Membership Engagement",confirmed:false},
-  {row:65,si:"SI 3.1",output:"Output 3.1.3",activity:"Member contribution and participation tracking; recognition of contributions",owner:"Membership Engagement",confirmed:false},
-  {row:66,si:"SI 3.1",output:"Output 3.1.3",activity:"Communications embedded within projects",owner:"FRIMCO",confirmed:false},
-  {row:67,si:"SI 3.1",output:"Output 3.1.4",activity:"Conduct Global Summit every 2 years",owner:"ED",confirmed:false},
-  {row:68,si:"SI 3.1",output:"Output 3.1.4",activity:"Risk Drivers Working Groups reactivated",owner:"To confirm",confirmed:false},
-  {row:69,si:"SI 3.1",output:"Output 3.1.4",activity:"Member-led webinars and peer exchanges",owner:"Membership Engagement",confirmed:false},
-  {row:71,si:"SI 3.1",output:"Output 3.1.4",activity:"Thematic collaboration through the Community Platform",owner:"Membership Engagement",confirmed:false},
-  {row:72,si:"SI 3.1",output:"Output 3.1.4",activity:"Mechanisms for solidarity and mutual support between members",owner:"Membership Engagement",confirmed:false},
-  {row:73,si:"SI 3.2",output:"Output 3.2.1",activity:"New strategic partnerships and donor stewardship",owner:"FRIMCO",confirmed:false},
-  {row:74,si:"SI 3.2",output:"Output 3.2.1",activity:"Foresight Fund developed for 2027 launch",owner:"FRIMCO",confirmed:false},
-  {row:75,si:"SI 3.2",output:"Output 3.2.1",activity:"Fundraising systems and policies",owner:"FRIMCO",confirmed:false},
-  {row:76,si:"SI 3.2",output:"Output 3.2.1",activity:"Give Us One Day funding mechanism (co-led with REAP)",owner:"FRIMCO",confirmed:false},
-  {row:77,si:"SI 3.2",output:"Output 3.2.2",activity:"Regional calls activating fundraising, storytelling and impact",owner:"FRIMCO",confirmed:false},
-  {row:79,si:"SI 3.2",output:"Output 3.2.3",activity:"Network-level MEAL framework operationalised (baseline, Year 1 prep, ongoing operation)",owner:"FRIMCO",confirmed:false},
-  {row:81,si:"SI 3.2",output:"Output 3.2.3",activity:"Data infrastructure, 3-year financial model & Strategic Coverage Table",owner:"Operations",confirmed:false},
-  {row:83,si:"SI 3.2",output:"Output 3.2.3",activity:"Collaboration metrics integrated into donor reporting (KR3)",owner:"FRIMCO",confirmed:false},
-  {row:84,si:"SI 3.2",output:"Output 3.2.4",activity:"Three-year financial planning",owner:"Operations",confirmed:false},
-  {row:85,si:"SI 3.2",output:"Output 3.2.4",activity:"Governance and financial-management systems",owner:"ED",confirmed:false},
-  {row:86,si:"SI 3.2",output:"Output 3.2.4",activity:"Audit and compliance",owner:"Operations",confirmed:false},
-  {row:87,si:"SI 3.2",output:"Output 3.2.4",activity:"Risk management and business continuity",owner:"Operations",confirmed:false},
-  {row:88,si:"SI 3.2",output:"Output 3.2.4",activity:"Talent management and staff wellbeing",owner:"Operations",confirmed:false},
-  {row:89,si:"SI 3.2",output:"Output 3.2.4",activity:"Organisational policies and operational systems",owner:"Operations",confirmed:false},
-  {row:90,si:"SI 3.2",output:"Output 3.2.4",activity:"Conduct face-to-face governance board meeting",owner:"ED",confirmed:false},
+  {row:3,si:"SI 1.1",output:"Output 1.1.1",activity:"Collect community practices, case studies and member/community-led stories from GNDR projects (for documentation and sharing)",owner:"Programmes",contrib:"FRIMCO",type:null,smg:null},
+  {row:4,si:"SI 1.1",output:"Output 1.1.2",activity:"Produce the LLAA (Locally-Led Anticipatory Action) Cookbook — practical guidance drawn from members’ practice",owner:"Regional Lead (Asia & Europe)",contrib:"Programmes, FRIMCO",type:null,smg:null},
+  {row:5,si:"SI 1.1",output:"Output 1.1.2",activity:"Develop close-out knowledge products from the HuT project (lessons and tools for members)",owner:"Regional Lead (Asia & Europe)",contrib:"Programmes, FRIMCO",type:null,smg:null},
+  {row:6,si:"SI 1.1",output:"Output 1.1.2",activity:"Develop guidance and practical tools from the LRF project for wider member use",owner:"Programmes",contrib:"",type:null,smg:null},
+  {row:7,si:"SI 1.1",output:"Output 1.1.2",activity:"Finalise the women-led anticipatory action work in Indonesia & Philippines (completed Q1 2026/27)",owner:"Programmes",contrib:"",type:"Q",smg:"S/M"},
+  {row:8,si:"SI 1.1",output:"Output 1.1.3",activity:"Deliver community-led landslide resilience under the LRF project (Ethiopia & Nepal)",owner:"Programmes",contrib:"Regional Leads, FRIMCO, Operations, Policy",type:"N",smg:"S/M"},
+  {row:9,si:"SI 1.1",output:"Output 1.1.3",activity:"Produce Stakeholder Needs Assessment reports for Nepal and Ethiopia (2 reports)",owner:"Programmes",contrib:"",type:null,smg:null},
+  {row:10,si:"SI 1.1",output:"Output 1.1.3",activity:"Capacity building of local actors on early warnings and early action — Nepal & Ethiopia (7 communities)",owner:"Programmes",contrib:"",type:null,smg:null},
+  {row:11,si:"SI 1.1",output:"Output 1.1.3",activity:"Deliver the Harnessing Technology for Climate-Smart Landslide Detection project — Kyrgyzstan",owner:"Programmes",contrib:"Regional Leads, FRIMCO, Operations, Policy",type:"N",smg:"S/M"},
+  {row:12,si:"SI 1.1",output:"Output 1.1.3",activity:"Run community surveys and consultations in 5 communities (needs and feasibility assessment)",owner:"Programmes",contrib:"",type:null,smg:null},
+  {row:13,si:"SI 1.1",output:"Output 1.1.3",activity:"Develop early warning protocols in 5 communities through community workshops",owner:"Programmes",contrib:"",type:null,smg:null},
+  {row:14,si:"SI 1.1",output:"Output 1.1.3",activity:"Deliver nature-based solutions under the Pacific Circle project (Tonga & Kiribati)",owner:"Programmes",contrib:"Regional Leads, FRIMCO, Operations, Policy",type:"N",smg:"S/M"},
+  {row:15,si:"SI 1.2",output:"Output 1.2.1",activity:"Conduct participatory needs assessments under the Kiwa project",owner:"Programmes",contrib:"",type:null,smg:null},
+  {row:16,si:"SI 1.2",output:"Output 1.2.1",activity:"Conduct needs assessment under the Climate-Smart Landslide Detection project (Kyrgyzstan)",owner:"Programmes",contrib:"",type:null,smg:null},
+  {row:17,si:"SI 1.2",output:"Output 1.2.1",activity:"Develop the new iteration of Views from the Frontline (VFL) — partnership building, fundraising, programme design and the VFL platform",owner:"FRIMCO + Programmes",contrib:"Regional Leads, Operations, Policy",type:"Q",smg:"S/M"},
+  {row:18,si:"SI 1.2",output:"Output 1.2.2",activity:"Share REAP system-mapping evidence into the REAP partnership",owner:"FRIMCO",contrib:"Policy",type:null,smg:null},
+  {row:19,si:"SI 1.2",output:"Output 1.2.3",activity:"Produce policy briefs for COP31",owner:"Policy",contrib:"Programmes, Membership Engagement, Regional Leads, FRIMCO",type:"N",smg:"S/M/G"},
+  {row:20,si:"SI 1.2",output:"Output 1.2.3",activity:"Contribute member evidence and positions to PPED discussions",owner:"Policy",contrib:"Regional Leads, FRIMCO",type:null,smg:null},
+  {row:21,si:"SI 1.2",output:"Output 1.2.3",activity:"Prepare and present evidence, summaries and presentations at global and regional forums",owner:"Policy",contrib:"Regional Leads, FRIMCO, Programmes",type:null,smg:null},
+  {row:22,si:"SI 1.2",output:"Output 1.2.3",activity:"Targeted engagement with national governments (LRF Ethiopia & Nepal, Kyrgyzstan; ADPC-UNDP Ethiopia & Togo)",owner:"Policy",contrib:"Programmes",type:"N",smg:"S/M/G"},
+  {row:23,si:"SI 1.2",output:"Output 1.2.3",activity:"Showcase member-led initiatives on GNDR platforms (amplifying member evidence and solutions)",owner:"Membership Engagement",contrib:"Regions, Programmes",type:null,smg:null},
+  {row:24,si:"SI 2.1",output:"Output 2.1.1",activity:"Support regionalisation of the Global Strategy 2026–2030 (regional work plans and cross-exchange workshops)",owner:"Regional Leads",contrib:"Membership Engagement, FRIMCO",type:"N",smg:"S/M"},
+  {row:25,si:"SI 2.1",output:"Output 2.1.1",activity:"Apply REAP systems-mapping practices with members (secondary contribution to Output 1.2.2)",owner:"FRIMCO",contrib:"",type:null,smg:null},
+  {row:26,si:"SI 2.1",output:"Output 2.1.2",activity:"Local Leadership Academy — member-led webinars & learning exchanges, incl. Peru replication (6 member-led webinars / 300 members + 3 NFP webinars; in-house trainers, topics TBD)",owner:"Membership Engagement",contrib:"Regional Leads, Policy, Programmes, FRIMCO",type:null,smg:null},
+  {row:27,si:"SI 2.1",output:"Output 2.1.3",activity:"Locally-led delivery - Pre-Evacuation Platform (LAC)",owner:"Regional Lead (Americas & Caribbean)",contrib:"Programmes",type:null,smg:null},
+  {row:28,si:"SI 2.2",output:"Output 2.2.1",activity:"SEM and PPED engagement (4 NGO constituency meetings for SEM facilitated, with monthly SEM advisory group support in 2026-27)",owner:"Policy",contrib:"Regional Leads",type:null,smg:null},
+  {row:29,si:"SI 2.2",output:"Output 2.2.2",activity:"Engage in PPED to develop and advance shared advocacy positions",owner:"Policy",contrib:"Regional Leads",type:null,smg:null},
+  {row:30,si:"SI 2.2",output:"Output 2.2.2",activity:"Collaborate with UNDRR (SEM, Sendai and post-Sendai) to advance shared advocacy positions",owner:"Policy",contrib:"Regional Leads",type:null,smg:null},
+  {row:31,si:"SI 2.2",output:"Output 2.2.2",activity:"Engage in UNFCCC SB64 and COP31 to advance shared advocacy positions",owner:"Policy",contrib:"Regional leds",type:null,smg:null},
+  {row:32,si:"SI 2.2",output:"Output 2.2.2",activity:"Engage in EU, South Asia, Africa and LAC regional policy forums to advance shared advocacy positions",owner:"Policy",contrib:"Regional Leads",type:null,smg:null},
+  {row:33,si:"SI 2.2",output:"Output 2.2.2",activity:"Profile GNDR in non-DRR spaces (broadening reach and influence)",owner:"FRIMCO",contrib:"Policy, Regional Leads",type:"N",smg:"S/M/G"},
+  {row:34,si:"SI 2.2",output:"Output 2.2.2",activity:"Engage with the REAP board and its policy work",owner:"ED + Policy",contrib:"FRIMCO, Programmes, Regional Leads",type:null,smg:null},
+  {row:35,si:"SI 2.2",output:"Output 2.2.2",activity:"Engage in SOFF processes and with Concord and Bond UK",owner:"ED",contrib:"Policy, Programmes",type:null,smg:null},
+  {row:36,si:"SI 2.2",output:"Output 2.2.3",activity:"Use disaster risk financing research findings in advocacy",owner:"Policy",contrib:"FRIMCO, Programmes",type:null,smg:null},
+  {row:37,si:"SI 2.2",output:"Output 2.2.3",activity:"Engage multilateral and financing actors on trust-based financing",owner:"FRIMCO",contrib:"ED, Regional Leads, Programmes, Policy",type:null,smg:null},
+  {row:38,si:"SI 2.2",output:"Output 2.2.3",activity:"Give Us One Day campaign as the advocacy ask for trust-based EWS financing (co-led with REAP)",owner:"FRIMCO",contrib:"Policy, Programmes, Regional Leads",type:"Q",smg:"S/G"},
+  {row:39,si:"SI 2.2",output:"Output 2.2.3",activity:"Raise visibility on IDDRR, DRR financing and women in DRR (webinars and campaigns)",owner:"Policy",contrib:"FRIMCO, Programmes, Regional Leads",type:"N",smg:"S/M/G"},
+  {row:40,si:"SI 3.1",output:"Output 3.1.1",activity:"Launch the new strategy and deliver supporting strategic communications",owner:"FRIMCO",contrib:"",type:"Q",smg:"S/M/G"},
+  {row:41,si:"SI 3.1",output:"Output 3.1.1",activity:"Produce member- and community-led storytelling that articulates GNDR’s identity and value",owner:"FRIMCO",contrib:"Regional Leads",type:"N",smg:"S/M/G"},
+  {row:42,si:"SI 3.1",output:"Output 3.1.1",activity:"Produce a reimagined Annual Report",owner:"FRIMCO",contrib:"",type:"Q",smg:"S/M/G"},
+  {row:43,si:"SI 3.1",output:"Output 3.1.1",activity:"Create a public-facing visual network map of the membership",owner:"FRIMCO",contrib:"",type:"Q",smg:"S/M/G"},
+  {row:44,si:"SI 3.1",output:"Output 3.1.1",activity:"Communications/comms guidance embedded across GNDR projects so member stories and GNDR identity are consistently captured and shared",owner:"FRIMCO",contrib:"",type:null,smg:null},
+  {row:45,si:"SI 3.1",output:"Output 3.1.2",activity:"Hold Regional Advisory Group (RAG) and National Coordination meetings across all regions",owner:"Regional Leads",contrib:"Policy, Programmes, FRIMCO",type:"N",smg:"S/M/G"},
+  {row:46,si:"SI 3.1",output:"Output 3.1.2",activity:"Support Global Board engagement and track governance performance KPIs",owner:"ED",contrib:"SLT",type:"N",smg:"S/M/G"},
+  {row:47,si:"SI 3.1",output:"Output 3.1.2",activity:"Region's RAG, NCM and NFP delivery.",owner:"Regional Lead (Americas & Caribbean)",contrib:"",type:"N",smg:"S/M/G"},
+  {row:48,si:"SI 3.1",output:"Output 3.1.2",activity:"Region's RAG, NCM and NFP delivery.",owner:"Regional Lead (Asia & Europe)",contrib:"",type:"N",smg:"S/M/G"},
+  {row:49,si:"SI 3.1",output:"Output 3.1.2",activity:"Region's RAG, NCM and NFP delivery.",owner:"Regional Lead (Africa & West Asia)",contrib:"",type:"N",smg:"S/M/G"},
+  {row:50,si:"SI 3.1",output:"Output 3.1.3",activity:"Refresh the Community Platform and improve member-data quality",owner:"Membership Engagement",contrib:"FRIMCO, Regional Leads",type:"Q",smg:"S/M"},
+  {row:51,si:"SI 3.1",output:"Output 3.1.3",activity:"Run the annual member survey",owner:"Membership Engagement + FRIMCO",contrib:"Regional Leads",type:null,smg:null},
+  {row:52,si:"SI 3.1",output:"Output 3.1.3",activity:"Track member contribution and participation, and recognise members’ contributions",owner:"Membership Engagement",contrib:"FRIMCO, Regional Leads",type:null,smg:null},
+  {row:53,si:"S 3.1",output:"Output 3.1.3",activity:"Returning co-created evidence and advocacy products to members so they can use them in their own contexts",owner:"Policy",contrib:"FRIMCO, Regional Leads",type:null,smg:null},
+  {row:54,si:"SI 3.1",output:"Output 3.1.4",activity:"Plan and conduct the Global Summit (held every 2 years)",owner:"ED",contrib:"SLT",type:null,smg:null},
+  {row:55,si:"SI 3.1",output:"Output 3.1.4",activity:"Reactivate the Risk Drivers Working Groups",owner:"Risk Drivers Lead",contrib:"Regional Leads, Programmes, Membership Engagement",type:null,smg:null},
+  {row:56,si:"SI 3.1",output:"Output 3.1.4",activity:"Enable thematic collaboration between members through the Community Platform",owner:"Membership Engagement",contrib:"Risk Drivers Lead, Programmes, Policy",type:null,smg:null},
+  {row:57,si:"SI 3.1",output:"Output 3.1.4",activity:"Strengthen mechanisms for solidarity and mutual support between members",owner:"Membership Engagement",contrib:"Regional Leads",type:null,smg:null},
+  {row:58,si:"SI 3.2",output:"Output 3.2.1",activity:"Build new strategic partnerships and steward existing donors",owner:"FRIMCO",contrib:"ED, Programmes, Policy, Regional Leads",type:"N",smg:"S/G"},
+  {row:59,si:"SI 3.2",output:"Output 3.2.1",activity:"Develop the Foresight Fund for 2027 launch",owner:"FRIMCO",contrib:"ED, Programmes, Policy, Regional Leads",type:"Q",smg:"S/G"},
+  {row:60,si:"SI 3.2",output:"Output 3.2.1",activity:"Strengthen fundraising systems and policies",owner:"FRIMCO",contrib:"",type:"Q",smg:"S/G"},
+  {row:61,si:"SI 3.2",output:"Output 3.2.1",activity:"Fundraising for Give Us One Day funding mechanism (co-led with REAP)",owner:"FRIMCO",contrib:"ED, Programmes, Policy, Regional Leads",type:null,smg:null},
+  {row:62,si:"SI 3.2",output:"Output 3.2.2",activity:"Run regional calls to activate fundraising, storytelling and impact",owner:"FRIMCO",contrib:"Regional Leads, Programmes",type:"N",smg:"S/M"},
+  {row:63,si:"SI 3.2",output:"Output 3.2.2",activity:"Document member fundraising contributions through shared reporting",owner:"FRIMCO",contrib:"",type:null,smg:null},
+  {row:64,si:"SI 3.2",output:"Output 3.2.3",activity:"Operationalise the network-level MEAL framework, including baseline data collection",owner:"FRIMCO",contrib:"Programmes, Policy, Regional Leads",type:null,smg:null},
+  {row:65,si:"SI 3.2",output:"Output 3.2.3",activity:"Develop data infrastructure, a 3-year financial (scenario) model and the Strategic Coverage Table",owner:"Operations",contrib:"ED, FRIMCO",type:null,smg:null},
+  {row:66,si:"SI 3.2",output:"Output 3.2.3",activity:"Integrate collaboration metrics into donor reporting",owner:"FRIMCO",contrib:"",type:null,smg:null},
+  {row:67,si:"SI 3.2",output:"Output 3.2.4",activity:"Strengthen governance and financial-management systems",owner:"ED",contrib:"Operations",type:"Q",smg:"S/G"},
+  {row:68,si:"SI 3.2",output:"Output 3.2.4",activity:"Complete audit and compliance requirements",owner:"Operations",contrib:"",type:null,smg:null},
+  {row:69,si:"SI 3.2",output:"Output 3.2.4",activity:"Strengthen risk management and business continuity",owner:"Operations",contrib:"ED, FRIMCO, Programmes, Policy, Regional Leads",type:null,smg:null},
+  {row:70,si:"SI 3.2",output:"Output 3.2.4",activity:"Strengthen talent management and staff wellbeing",owner:"Operations",contrib:"SLT",type:null,smg:null},
+  {row:71,si:"SI 3.2",output:"Output 3.2.4",activity:"Update organisational policies and operational systems",owner:"Operations",contrib:"SLT",type:null,smg:null},
+  {row:72,si:"SI 3.2",output:"Output 3.2.4",activity:"Convene the face-to-face governance board meeting",owner:"ED",contrib:"SLT",type:null,smg:null}
 ];
 
 const OUTPUTS = [
-  {id:"1.1.1",goal:"Goal 1",si:"SI 1.1 — Harnessing practice-led learning",short:"Practices & innovations documented",y1:"Process milestone, baseline-setting: At least 20 member- and community-led practices, innovations, case studies or stories documented and synthesised in 2026-27.",y24:"Outcome milestone: At least 100 additional practices, innovations, case studies or stories documented during 2027-30, bringing the cumulative total to at least 120 by 2030, with representation across all regions and major risk-driver themes."},
-  {id:"1.1.2",goal:"Goal 1",si:"SI 1.1 — Harnessing practice-led learning",short:"Guidance & tools co-developed with members",y1:"Process milestone, baseline-setting: At least 3 practical guidance, tool or learning products co-developed, tested and shared with members and communities in 2026-27, with a mechanism established to track subsequent adaptation and use.",y24:"Outcome milestone: At least 6 practical guidance or tool products in active use by 2030, with evidence of adaptation or use in at least 15 countries, building on the tracking mechanism established in Year 1."},
-  {id:"1.1.3",goal:"Goal 1",si:"SI 1.1 — Harnessing practice-led learning",short:"Solutions co-designed, tested & validated",y1:"Process milestone, baseline-setting: At least 7 locally led risk-informed resilience solutions co-designed, tested and validated with communities in 2026-27 through the community-led landslide resilience work in Ethiopia and Nepal.",y24:"Outcome milestone: At least 5 additional locally led risk-informed resilience solutions co-designed, tested and validated during 2027-30 through the Climate-Smart Landslide Detection work in Kyrgyzstan and further sites, bringing the cumulative total to at least 12 by 2030."},
-  {id:"1.2.1",goal:"Goal 1",si:"SI 1.2 — Generating persuasive evidence",short:"Evidence co-generated on knowledge gaps",y1:"Process milestone, baseline-setting: 7 co-creation workshops/participatory consultations held under the LRF Ethiopia & Nepal work in 2026-27, reaching 7 communities and 3,150+ people, plus community survey/baseline work in Kiribati and Tonga (2,800 people). Total Year 1: at least 7 communities and 5,950+ people reached.",y24:"Outcome milestone: At least 25,000 additional people reached through evidence co-generation during 2027-30, bringing the cumulative total to approximately 31,000 people by 2030."},
-  {id:"1.2.2",goal:"Goal 1",si:"SI 1.2 — Generating persuasive evidence",short:"Research collaborations strengthen evidence",y1:"Process milestone, baseline-setting: At least 2 formal collaborations with research institutions established (UCL/CDP, IIED).",y24:"Outcome milestone: At least 5 collaborations with research institutions active by 2030, with at least 3 joint research or evidence products delivered."},
-  {id:"1.2.3",goal:"Goal 1",si:"SI 1.2 — Generating persuasive evidence",short:"Evidence amplified to decision-makers",y1:"Process milestone, baseline-setting: 1 global call to action (towards COP) and 2 regional policy events in which GNDR members will participate delivered in 2026-27.",y24:"Outcome milestone: Up to 10 policy products across the strategy period (CoP, Global Summit, Global Platform and Regional Platforms, PPED)."},
-  {id:"2.1.1",goal:"Goal 2",si:"SI 2.1 — Unlocking locally-led change",short:"Ecosystem analysis & collaboration pathways",y1:"Process milestone, baseline-setting: 4 cross-exchange learning workshops with regional stakeholders held in 2026-27, supporting regional work plans for the Global Strategy rollout.",y24:"Outcome milestone: At least 20 ecosystem analyses or collaboration roadmaps developed by 2030, informing member engagement in at least 15 national or local DRR systems."},
-  {id:"2.1.2",goal:"Goal 2",si:"SI 2.1 — Unlocking locally-led change",short:"Member policy & advocacy capacity",y1:"Process milestone, baseline-setting: 1 policy-focused Local Leadership Academy webinar delivered in 2026-27, reaching approximately 50 members.",y24:"Outcome milestone: Up to 2 additional policy-focused Local Leadership Academy webinars delivered during 2027-30 (bringing the total to 3 across the strategy period), reaching a cumulative total of approximately 150 members."},
-  {id:"2.1.3",goal:"Goal 2",si:"SI 2.1 — Unlocking locally-led change",short:"Convening members with policymakers",y1:"Process milestone, baseline-setting: 3 country workshops convening CSOs and DRM institutions to validate the Pre-Evacuation Platform in LAC, plus at least 2 new dialogue/decision-making spaces opened per region for member participation in 2026-27.",y24:"Outcome milestone: At least 24 additional dialogue/decision-making spaces opened during 2027-30, bringing the cumulative total to at least 30 spaces by 2030, with evidence of follow-up or influence in at least 15 national or local systems."},
-  {id:"2.2.1",goal:"Goal 2",si:"SI 2.2 — Influencing the next horizon of local leadership",short:"Evidence translated into policy asks",y1:"Process milestone, baseline-setting: 4 NGO constituency meetings for SEM facilitated, with monthly SEM advisory group support in 2026-27.",y24:"Outcome milestone: At least 8 co-created policy or advocacy products delivered during 2027-30."},
-  {id:"2.2.2",goal:"Goal 2",si:"SI 2.2 — Influencing the next horizon of local leadership",short:"Shared advocacy across global processes",y1:"Process milestone, baseline-setting: 10 members facilitated to attend UNFCCC events (SB64, COP31); 150 members engaged in GNDR's COP31 call to action; 4 side events delivered; sustained engagement in EU and South Asia Regional Policy Forums; GNDR profiled on 2+ non-DRR platforms in 2026-27.",y24:"Outcome milestone: At least 12 priority regional/international processes engaged by 2030 (all regions), with evidence of GNDR's influence documented in at least 6."},
-  {id:"2.2.3",goal:"Goal 2",si:"SI 2.2 — Influencing the next horizon of local leadership",short:"Advocacy for trust-based financing",y1:"Process milestone, baseline-setting: IDDRR webinar reaching 60+ members; joint GNDR/REAP 'Give Us One Day' campaign launched, targeting $28M for the missing last-mile EWS layer; webinar on 'Localisation of DRR Financing' research findings delivered; continued support to the LAC Network of Women in DRR in 2026-27.",y24:"Outcome milestone: At least 4 financing recommendations or collective advocacy initiatives advanced by 2030, with documented changes in the policy, practice or funding mechanisms of at least 3 target institutions."},
-  {id:"3.1.1",goal:"Goal 3",si:"SI 3.1 — Strengthening the GNDR identity and member experience",short:"Identity communicated through member stories",y1:"Process milestone, baseline-setting: 20+ diverse member-led stories collected across all regions (30+ stretch), in 2+ languages; Strategy and identity communicated across all channels by end Q1, with 400+ new followers/quarter and 8 public newsletters published in 2026-27.",y24:"Outcome milestone: At least 100 diverse member and community stories collected and amplified by 2030, representing all regions and published in multiple languages, with evidence of increased audience reach and engagement from the 2027 baseline."},
-  {id:"3.1.2",goal:"Goal 3",si:"SI 3.1 — Strengthening the GNDR identity and member experience",short:"Inclusive governance & representation",y1:"Process milestone, baseline-setting: Approximately 12 RAG meetings (4 per region) and 28 National Coordination Meetings supported in 2026-27, with NFPs mobilised; 12 Board Working Group meetings organised; Global Board performance KPIs implemented.",y24:"Outcome milestone: Governance meeting participation and leadership sustained annually through 2030, disaggregated by region, gender, age, disability and organisational type, with at least 60% of governance roles reflecting diverse representation."},
-  {id:"3.1.3",goal:"Goal 3",si:"SI 3.1 — Strengthening the GNDR identity and member experience",short:"Member engagement & feedback mechanisms",y1:"Process milestone, baseline-setting: Community Platform refreshed and adopted (at least 6 improvements), with post-Summit member-data update and at least 50% expertise-mapping coverage; annual member survey redesigned (shorter, 3+ languages) and analysed in 2026-27.",y24:"Outcome milestone: Annual member survey conducted and acted upon; at least 70% of active members have updated profiles or expertise data by 2030; platform engagement increases annually from the 2027 baseline."},
-  {id:"3.1.4",goal:"Goal 3",si:"SI 3.1 — Strengthening the GNDR identity and member experience",short:"Connection, solidarity & mutual support",y1:"Process milestone, baseline-setting: Network map live and publicly accessible, with evidence of external use; 4 Risk Drivers Working Groups reactivated with at least 12 meetings and 300 members participating; participatory storytelling approach scoped and piloted in at least 1 region.",y24:"Outcome milestone: Two Global Summits convened; four Risk Driver Groups maintained with at least 500 participating members; and at least 24 regional or thematic peer-learning and solidarity exchanges facilitated by 2030."},
-  {id:"3.2.1",goal:"Goal 3",si:"SI 3.2 — Ensuring a resilient and sustainable network",short:"Funding partnerships diversified",y1:"Process milestone, baseline-setting: 5-7 strategically aligned multi-year partnerships secured (20% unrestricted income); Foresight Fund governance approved with 2 anchor partners secured toward a 5-6 foundation target by 2027; progress tracked toward the $28M 'Give Us One Day' ask.",y24:"Outcome milestone: At least 5 additional multi-year strategic funding partnerships secured during 2027-30, bringing the cumulative total to 10-12 by 2030; the Foresight Fund reaches its full 5-6 foundation-partner target, up from the 2 anchors secured in Year 1."},
-  {id:"3.2.2",goal:"Goal 3",si:"SI 3.2 — Ensuring a resilient and sustainable network",short:"Members connected to funding opportunities",y1:"Process milestone, baseline-setting: 13 regional calls delivered to activate fundraising, storytelling and impact reporting across NFPs/RAGs; Go/No-Go policy and Fundraising Strategy approved in 2026-27.",y24:"Outcome milestone: At least 100 members connected to relevant funding, consortium or partnership opportunities by 2030, with the value and outcomes of successful opportunities tracked."},
-  {id:"3.2.3",goal:"Goal 3",si:"SI 3.2 — Ensuring a resilient and sustainable network",short:"GNDR value evidenced for accountability",y1:"Process milestone, baseline-setting: 2026-30 MEAL framework documented, staff trained and in active use; Strategic Coverage Table and 3-year financial model populated and reviewed; at least 50 member contributions documented (aspirational); collaboration metrics included in 3+ donor reports.",y24:"Outcome milestone: Annual strategy performance reports produced, including member contribution, benefit, influence and collaboration data; at least 20 substantiated stories of network-level change documented by 2030."},
-  {id:"3.2.4",goal:"Goal 3",si:"SI 3.2 — Ensuring a resilient and sustainable network",short:"Institutional systems strengthened",y1:"Process milestone, baseline-setting: Clean audit and statutory accounts delivered on time; policies and Risk Register updated; staffing gaps filled within 3 months; Staff Wellbeing & Workload survey conducted; Speak Up channel and safeguarding/manager training in place.",y24:"Outcome milestone: Clean annual audits and statutory compliance maintained; key institutional policies and risk systems reviewed annually; staff wellbeing, safeguarding and operational capacity monitored and improved."},
+  {id:"1.1.1",goal:"Goal 1",si:"SI 1.1 — Harnessing practice-led learning",short:"Practices & innovations documented",y1:"At least 20 member- and community-led practices, innovations, case studies or stories documented and synthesised in 2026-27.",y24:"Outcome milestone: At least 100 additional practices, innovations, case studies or stories documented during 2027-30, bringing the cumulative total to at least 120 by 2030, with representation across all regions and major risk-driver themes."},
+  {id:"1.1.2",goal:"Goal 1",si:"SI 1.1 — Harnessing practice-led learning",short:"Guidance & tools co-developed with members",y1:"At least 3 practical guidance, tool or learning products co-developed, tested and shared with members and communities in 2026-27, with a mechanism established to track subsequent adaptation and use.",y24:"Outcome milestone: At least 6 practical guidance or tool products in active use by 2030, with evidence of adaptation or use in at least 15 countries, building on the tracking mechanism established in Year 1."},
+  {id:"1.1.3",goal:"Goal 1",si:"SI 1.1 — Harnessing practice-led learning",short:"Solutions co-designed, tested & validated",y1:"At least 7 locally led risk-informed resilience solutions co-designed, tested and validated with communities in 2026-27 through the community-led landslide resilience work in Ethiopia and Nepal.",y24:"Outcome milestone: At least 5 additional locally led risk-informed resilience solutions co-designed, tested and validated during 2027-30 through the Climate-Smart Landslide Detection work in Kyrgyzstan and further sites, bringing the cumulative total to at least 12 by 2030."},
+  {id:"1.2.1",goal:"Goal 1",si:"SI 1.2 — Generating persuasive evidence",short:"Evidence co-generated on knowledge gaps",y1:"7 co-creation workshops/participatory consultations held under the LRF Ethiopia & Nepal work in 2026-27, reaching 7 communities and 3,150+ people, plus community survey/baseline work in Kiribati and Tonga (2,800 people). Total Year 1: at least 7 communities and 5,950+ people reached.",y24:"Outcome milestone: At least 25,000 additional people reached through evidence co-generation during 2027-30, bringing the cumulative total to approximately 31,000 people by 2030."},
+  {id:"1.2.2",goal:"Goal 1",si:"SI 1.2 — Generating persuasive evidence",short:"Research collaborations strengthen evidence",y1:"At least 2 formal collaborations with research institutions established (UCL/CDP, IIED).",y24:"Outcome milestone: At least 5 collaborations with research institutions active by 2030, with at least 3 joint research or evidence products delivered."},
+  {id:"1.2.3",goal:"Goal 1",si:"SI 1.2 — Generating persuasive evidence",short:"Evidence amplified to decision-makers",y1:"1 global call to action (towards COP) and 2 regional policy events in which GNDR members will participate delivered in 2026-27.",y24:"Outcome milestone: Up to 10 policy products across the strategy period (CoP, Global Summit, Global Platform and Regional Platforms, PPED)."},
+  {id:"2.1.1",goal:"Goal 2",si:"SI 2.1 — Unlocking locally-led change",short:"Ecosystem analysis & collaboration pathways",y1:"4 cross-exchange learning workshops with regional stakeholders held in 2026-27, supporting regional work plans for the Global Strategy rollout.",y24:"Outcome milestone: At least 20 ecosystem analyses or collaboration roadmaps developed by 2030, informing member engagement in at least 15 national or local DRR systems."},
+  {id:"2.1.2",goal:"Goal 2",si:"SI 2.1 — Unlocking locally-led change",short:"Member policy & advocacy capacity",y1:"1 policy-focused Local Leadership Academy webinar delivered in 2026-27, reaching approximately 50 members.",y24:"Outcome milestone: Up to 2 additional policy-focused Local Leadership Academy webinars delivered during 2027-30 (bringing the total to 3 across the strategy period), reaching a cumulative total of approximately 150 members."},
+  {id:"2.1.3",goal:"Goal 2",si:"SI 2.1 — Unlocking locally-led change",short:"Convening members with policymakers",y1:"3 country workshops convening CSOs and DRM institutions to validate the Pre-Evacuation Platform in LAC, plus at least 2 new dialogue/decision-making spaces opened per region for member participation in 2026-27.",y24:"Outcome milestone: At least 24 additional dialogue/decision-making spaces opened during 2027-30, bringing the cumulative total to at least 30 spaces by 2030, with evidence of follow-up or influence in at least 15 national or local systems."},
+  {id:"2.2.1",goal:"Goal 2",si:"SI 2.2 — Influencing the next horizon of local leadership",short:"Evidence translated into policy asks",y1:"4 NGO constituency meetings for SEM facilitated, with monthly SEM advisory group support in 2026-27.",y24:"Outcome milestone: At least 8 co-created policy or advocacy products delivered during 2027-30."},
+  {id:"2.2.2",goal:"Goal 2",si:"SI 2.2 — Influencing the next horizon of local leadership",short:"Shared advocacy across global processes",y1:"10 members facilitated to attend UNFCCC events (SB64, COP31); 150 members engaged in GNDR's COP31 call to action; 4 side events delivered; sustained engagement in EU and South Asia Regional Policy Forums; GNDR profiled on 2+ non-DRR platforms in 2026-27.",y24:"Outcome milestone: At least 12 priority regional/international processes engaged by 2030 (all regions), with evidence of GNDR's influence documented in at least 6."},
+  {id:"2.2.3",goal:"Goal 2",si:"SI 2.2 — Influencing the next horizon of local leadership",short:"Advocacy for trust-based financing",y1:"IDDRR webinar reaching 60+ members; joint GNDR/REAP 'Give Us One Day' campaign launched, targeting $28M for the missing last-mile EWS layer; webinar on 'Localisation of DRR Financing' research findings delivered; continued support to the LAC Network of Women in DRR in 2026-27.",y24:"Outcome milestone: At least 4 financing recommendations or collective advocacy initiatives advanced by 2030, with documented changes in the policy, practice or funding mechanisms of at least 3 target institutions."},
+  {id:"3.1.1",goal:"Goal 3",si:"SI 3.1 — Strengthening the GNDR identity and member experience",short:"Identity communicated through member stories",y1:"20+ diverse member-led stories collected across all regions (30+ stretch), in 2+ languages; Strategy and identity communicated across all channels by end Q1, with 400+ new followers/quarter and 8 public newsletters published in 2026-27.",y24:"Outcome milestone: At least 100 diverse member and community stories collected and amplified by 2030, representing all regions and published in multiple languages, with evidence of increased audience reach and engagement from the 2027 baseline."},
+  {id:"3.1.2",goal:"Goal 3",si:"SI 3.1 — Strengthening the GNDR identity and member experience",short:"Inclusive governance & representation",y1:"Approximately 12 RAG meetings (4 per region) and 28 National Coordination Meetings supported in 2026-27, with NFPs mobilised; 12 Board Working Group meetings organised; Global Board performance KPIs implemented.",y24:"Outcome milestone: Governance meeting participation and leadership sustained annually through 2030, disaggregated by region, gender, age, disability and organisational type, with at least 60% of governance roles reflecting diverse representation."},
+  {id:"3.1.3",goal:"Goal 3",si:"SI 3.1 — Strengthening the GNDR identity and member experience",short:"Member engagement & feedback mechanisms",y1:"Community Platform refreshed and adopted (at least 6 improvements), with post-Summit member-data update and at least 50% expertise-mapping coverage; annual member survey redesigned (shorter, 3+ languages) and analysed in 2026-27.",y24:"Outcome milestone: Annual member survey conducted and acted upon; at least 70% of active members have updated profiles or expertise data by 2030; platform engagement increases annually from the 2027 baseline."},
+  {id:"3.1.4",goal:"Goal 3",si:"SI 3.1 — Strengthening the GNDR identity and member experience",short:"Connection, solidarity & mutual support",y1:"Network map live and publicly accessible, with evidence of external use; 4 Risk Drivers Working Groups reactivated with at least 12 meetings and 300 members participating; participatory storytelling approach scoped and piloted in at least 1 region.",y24:"Outcome milestone: Two Global Summits convened; four Risk Driver Groups maintained with at least 500 participating members; and at least 24 regional or thematic peer-learning and solidarity exchanges facilitated by 2030."},
+  {id:"3.2.1",goal:"Goal 3",si:"SI 3.2 — Ensuring a resilient and sustainable network",short:"Funding partnerships diversified",y1:"5-7 strategically aligned multi-year partnerships secured (20% unrestricted income); Foresight Fund governance approved with 2 anchor partners secured toward a 5-6 foundation target by 2027; progress tracked toward the $28M 'Give Us One Day' ask.",y24:"Outcome milestone: At least 5 additional multi-year strategic funding partnerships secured during 2027-30, bringing the cumulative total to 10-12 by 2030; the Foresight Fund reaches its full 5-6 foundation-partner target, up from the 2 anchors secured in Year 1."},
+  {id:"3.2.2",goal:"Goal 3",si:"SI 3.2 — Ensuring a resilient and sustainable network",short:"Members connected to funding opportunities",y1:"13 regional calls delivered to activate fundraising, storytelling and impact reporting across NFPs/RAGs; Go/No-Go policy and Fundraising Strategy approved in 2026-27.",y24:"Outcome milestone: At least 100 members connected to relevant funding, consortium or partnership opportunities by 2030, with the value and outcomes of successful opportunities tracked."},
+  {id:"3.2.3",goal:"Goal 3",si:"SI 3.2 — Ensuring a resilient and sustainable network",short:"GNDR value evidenced for accountability",y1:"2026-30 MEAL framework documented, staff trained and in active use; Strategic Coverage Table and 3-year financial model populated and reviewed; at least 50 member contributions documented (aspirational); collaboration metrics included in 3+ donor reports.",y24:"Outcome milestone: Annual strategy performance reports produced, including member contribution, benefit, influence and collaboration data; at least 20 substantiated stories of network-level change documented by 2030."},
+  {id:"3.2.4",goal:"Goal 3",si:"SI 3.2 — Ensuring a resilient and sustainable network",short:"Institutional systems strengthened",y1:"Clean audit and statutory accounts delivered on time; policies and Risk Register updated; staffing gaps filled within 3 months; Staff Wellbeing & Workload survey conducted; Speak Up channel and safeguarding/manager training in place.",y24:"Outcome milestone: Clean annual audits and statutory compliance maintained; key institutional policies and risk systems reviewed annually; staff wellbeing, safeguarding and operational capacity monitored and improved."},
 ];
 
-const TEAMS = ["Programmes","Policy","FRIMCO","Membership Engagement","Regional Leads","Operations","ED","Risk Drivers Lead","SLT"];
+const TEAMS = ["Programmes","Policy","FRIMCO","Membership Engagement","Operations","ED","Risk Drivers Lead","Regional Lead (Americas & Caribbean)","Regional Lead (Asia & Europe)","Regional Lead (Africa & West Asia)","Regional Leads","SLT"];
+
+// Admins can edit the Indicator dashboard and each activity's Type (Q/N) and
+// S·M·G fields. Everyone else ("Editor") can only edit their own team's
+// quarterly updates in "My activities". Add/remove emails here as needed —
+// this is a simple allowlist, not a real auth-role system.
+const ADMIN_EMAILS = ["diana.apache@gndr.org", "vera.exnerova@gndr.org", "marcos.concepcionraba@gndr.org", "shivangi.chavda@gndr.org"];
+function isAdminEmail(email) {
+  return ADMIN_EMAILS.includes((email || "").toLowerCase());
+}
 const QUARTERS = ["Q1","Q2","Q3","Q4"];
 
 const SI_DASHBOARD = [
@@ -420,6 +423,7 @@ function UpdateDrawer({ activity, quarter, existing, onClose, onSave, identity }
               value={plan}
               onChange={(e) => setPlan(e.target.value)}
               rows={3}
+              placeholder="The quarter, and what is planned or delivered in it."
               className="w-full px-3 py-2 rounded-md text-sm outline-none resize-none"
               style={{ border: `1.5px solid ${C.line}`, background: C.paperRaised, color: C.ink }}
             />
@@ -433,7 +437,7 @@ function UpdateDrawer({ activity, quarter, existing, onClose, onSave, identity }
               value={whatHappened}
               onChange={(e) => setWhatHappened(e.target.value)}
               rows={3}
-              placeholder="Fill this in at quarter-end"
+              placeholder="Narrative — filled at quarter-end."
               className="w-full px-3 py-2 rounded-md text-sm outline-none resize-none"
               style={{ border: `1.5px solid ${C.line}`, background: C.paperRaised, color: C.ink }}
             />
@@ -447,6 +451,7 @@ function UpdateDrawer({ activity, quarter, existing, onClose, onSave, identity }
               value={adaptation}
               onChange={(e) => setAdaptation(e.target.value)}
               rows={2}
+              placeholder="Narrative — filled at quarter-end."
               className="w-full px-3 py-2 rounded-md text-sm outline-none resize-none"
               style={{ border: `1.5px solid ${C.line}`, background: C.paperRaised, color: C.ink }}
             />
@@ -497,11 +502,123 @@ function UpdateDrawer({ activity, quarter, existing, onClose, onSave, identity }
 
 /* ============================== ACTIVITY ROW ============================== */
 
-function ActivityRow({ activity, updates, onOpenQuarter, expanded, onToggle }) {
+function TypeSmgBadges({ activity, meta, isAdmin, onSetTypeSmg }) {
+  const [editing, setEditing] = useState(false);
+  const effType = meta?.type || activity.type || "";
+  const effSmg = meta?.smg || activity.smg || "";
+  const smgSet = new Set(effSmg.split("/").map((s) => s.trim()).filter(Boolean));
+
+  const toggleSmg = (letter) => {
+    const next = new Set(smgSet);
+    if (next.has(letter)) next.delete(letter); else next.add(letter);
+    const order = ["S", "M", "G"];
+    onSetTypeSmg(activity.row, { smg: order.filter((l) => next.has(l)).join("/") });
+  };
+
+  if (!isAdmin) {
+    return (
+      <div className="flex items-center gap-1.5">
+        {effType && <Pill color={C.tealDeep} bg={C.tealTint}>{effType === "Q" ? "Qualitative" : "Numeric"}</Pill>}
+        {effSmg && <Pill color={C.inkSoft} bg={C.lineSoft}>{effSmg}</Pill>}
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative">
+      <button
+        onClick={(e) => { e.stopPropagation(); setEditing((v) => !v); }}
+        className="flex items-center gap-1.5"
+        title="Admin: click to edit Type / S·M·G"
+      >
+        {effType ? <Pill color={C.tealDeep} bg={C.tealTint}>{effType === "Q" ? "Qualitative" : "Numeric"}</Pill> : <Pill color={C.muted} bg={C.lineSoft}>Type?</Pill>}
+        {effSmg ? <Pill color={C.inkSoft} bg={C.lineSoft}>{effSmg}</Pill> : <Pill color={C.muted} bg={C.lineSoft}>S·M·G?</Pill>}
+      </button>
+      {editing && (
+        <div
+          className="absolute z-20 top-full left-0 mt-1 p-3 rounded-lg shadow-lg"
+          style={{ background: "#fff", border: `1px solid ${C.line}`, minWidth: 200 }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="text-[11px] font-semibold mb-1" style={{ color: C.muted }}>Type</div>
+          <div className="flex gap-1 mb-2">
+            {["Q", "N"].map((t) => (
+              <button
+                key={t}
+                onClick={() => onSetTypeSmg(activity.row, { type: t })}
+                className="px-2.5 py-1 rounded text-xs font-medium"
+                style={{ border: `1.5px solid ${effType === t ? C.teal : C.line}`, background: effType === t ? C.tealTint : "#fff", color: effType === t ? C.tealDeep : C.inkSoft }}
+              >
+                {t === "Q" ? "Qualitative" : "Numeric"}
+              </button>
+            ))}
+          </div>
+          <div className="text-[11px] font-semibold mb-1" style={{ color: C.muted }}>S · M · G</div>
+          <div className="flex gap-1 mb-2">
+            {[["S", "Secretariat"], ["M", "Members"], ["G", "Governance"]].map(([letter, label]) => (
+              <button
+                key={letter}
+                onClick={() => toggleSmg(letter)}
+                className="px-2.5 py-1 rounded text-xs font-medium"
+                style={{ border: `1.5px solid ${smgSet.has(letter) ? C.teal : C.line}`, background: smgSet.has(letter) ? C.tealTint : "#fff", color: smgSet.has(letter) ? C.tealDeep : C.inkSoft }}
+                title={label}
+              >
+                {letter}
+              </button>
+            ))}
+          </div>
+          <button onClick={() => setEditing(false)} className="text-xs underline" style={{ color: C.tealDeep }}>Done</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CountryPicker({ activity, meta, onSetCountries }) {
+  const [open, setOpen] = useState(false);
+  const current = splitList(meta?.countries);
+
+  const toggle = (country) => {
+    const next = current.includes(country) ? current.filter((c) => c !== country) : [...current, country];
+    onSetCountries(activity.row, next.join(", "));
+  };
+
+  return (
+    <div className="relative" onClick={(e) => e.stopPropagation()}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex items-center gap-1 text-xs px-2 py-1 rounded-md"
+        style={{ border: `1px dashed ${C.line}`, color: current.length ? C.inkSoft : C.muted }}
+      >
+        <MapPin size={11} />
+        {current.length ? current.join(", ") : "Countries (if applicable)"}
+      </button>
+      {open && (
+        <div
+          className="absolute z-20 top-full left-0 mt-1 rounded-lg shadow-lg overflow-hidden"
+          style={{ background: "#fff", border: `1px solid ${C.line}`, width: 260 }}
+        >
+          <div className="max-h-56 overflow-y-auto p-1.5">
+            {WORLD_COUNTRIES.map((c) => (
+              <label key={c} className="flex items-center gap-2 px-2 py-1 rounded text-xs cursor-pointer" style={{ color: C.ink }}>
+                <input type="checkbox" checked={current.includes(c)} onChange={() => toggle(c)} />
+                {c}
+              </label>
+            ))}
+          </div>
+          <button onClick={() => setOpen(false)} className="w-full text-xs py-1.5" style={{ background: C.lineSoft, color: C.tealDeep }}>Done</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ActivityRow({ activity, updates, onOpenQuarter, expanded, onToggle, identity, meta, onSetTypeSmg, onSetCountries }) {
   const statuses = {};
   QUARTERS.forEach((q) => {
     statuses[q] = updates?.[q]?.confidence ?? null;
   });
+  const contributors = splitList(activity.contrib);
 
   return (
     <div style={{ borderBottom: `1px solid ${C.lineSoft}` }}>
@@ -518,37 +635,43 @@ function ActivityRow({ activity, updates, onOpenQuarter, expanded, onToggle }) {
           <div className="text-sm leading-snug" style={{ color: C.ink }}>
             {activity.activity}
           </div>
-          <div className="flex items-center gap-2 mt-1">
+          <div className="flex items-center flex-wrap gap-2 mt-1.5">
             <span className="text-xs" style={{ color: C.muted }}>
               {activity.output}
             </span>
-            {!activity.confirmed && (
-              <Pill color={C.red} bg={C.redBg}>
-                Owner to confirm
-              </Pill>
+            {contributors.length > 0 && (
+              <span className="text-xs" style={{ color: C.muted }}>
+                · with {contributors.join(", ")}
+              </span>
             )}
+            <TypeSmgBadges activity={activity} meta={meta} isAdmin={identity?.isAdmin} onSetTypeSmg={onSetTypeSmg} />
           </div>
         </div>
         <QuarterTrack statuses={statuses} />
       </button>
 
       {expanded && (
-        <div className="pb-4 pl-7 flex flex-wrap gap-2">
-          {QUARTERS.map((q) => {
-            const v = statuses[q];
-            const info = confidenceInfo(v);
-            return (
-              <button
-                key={q}
-                onClick={() => onOpenQuarter(q)}
-                className="px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5"
-                style={{ border: `1.5px solid ${v != null ? info.color : C.line}`, color: v != null ? info.color : C.inkSoft }}
-              >
-                {v != null ? <CheckCircle2 size={13} /> : <Circle size={13} />}
-                {q} {v != null ? `· ${v}/10` : "· log update"}
-              </button>
-            );
-          })}
+        <div className="pb-4 pl-7">
+          <div className="mb-2.5">
+            <CountryPicker activity={activity} meta={meta} onSetCountries={onSetCountries} />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {QUARTERS.map((q) => {
+              const v = statuses[q];
+              const info = confidenceInfo(v);
+              return (
+                <button
+                  key={q}
+                  onClick={() => onOpenQuarter(q)}
+                  className="px-3 py-1.5 rounded-md text-xs font-medium flex items-center gap-1.5"
+                  style={{ border: `1.5px solid ${v != null ? info.color : C.line}`, color: v != null ? info.color : C.inkSoft }}
+                >
+                  {v != null ? <CheckCircle2 size={13} /> : <Circle size={13} />}
+                  {q} {v != null ? `· ${v}/10` : "· log update"}
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>
@@ -557,7 +680,8 @@ function ActivityRow({ activity, updates, onOpenQuarter, expanded, onToggle }) {
 
 /* ============================== MY ACTIVITIES VIEW ============================== */
 
-function MyActivitiesView({ identity, updates, onSaveUpdate }) {
+function MyActivitiesView({ identity, updates, onSaveUpdate, activityMeta, onSetTypeSmg, onSetCountries }) {
+
   const [expandedRow, setExpandedRow] = useState(null);
   const [drawer, setDrawer] = useState(null); // {activity, quarter}
 
@@ -593,10 +717,6 @@ function MyActivitiesView({ identity, updates, onSaveUpdate }) {
         {mine.length} {mine.length === 1 ? "activity" : "activities"} owned by {identity.team}
       </SectionLabel>
       {Object.entries(grouped).map(([output, acts]) => {
-        const outputId = output.replace("Output ", "");
-        const siId = outputId.split(".").slice(0, 2).join(".");
-        const indicators = (SI_DASHBOARD.find((s) => s.si === siId)?.indicators || [])
-          .filter((ind) => ind.coverage.some((c) => c.output === outputId && ratingInfo(c.rating).weight > 0));
         return (
         <div key={output} className="mb-6">
           <div className="flex items-center flex-wrap gap-2 mb-2">
@@ -606,20 +726,6 @@ function MyActivitiesView({ identity, updates, onSaveUpdate }) {
             >
               {output}
             </div>
-            {indicators.length > 0 && (
-              <div className="flex items-center gap-1.5">
-                <span className="text-[11px]" style={{ color: C.muted }}>feeds indicator{indicators.length > 1 ? "s" : ""} in the dashboard:</span>
-                {indicators.map((ind) => (
-                  <span
-                    key={ind.letter}
-                    className="text-[11px] font-medium px-1.5 py-0.5 rounded"
-                    style={{ background: C.amberBrandTint, color: "#8A5A00" }}
-                  >
-                    ({ind.letter})
-                  </span>
-                ))}
-              </div>
-            )}
           </div>
           <div
             className="rounded-lg mt-2 px-3"
@@ -633,6 +739,10 @@ function MyActivitiesView({ identity, updates, onSaveUpdate }) {
                 expanded={expandedRow === a.row}
                 onToggle={() => setExpandedRow(expandedRow === a.row ? null : a.row)}
                 onOpenQuarter={(q) => setDrawer({ activity: a, quarter: q })}
+                identity={identity}
+                meta={activityMeta[a.row]}
+                onSetTypeSmg={onSetTypeSmg}
+                onSetCountries={onSetCountries}
               />
             ))}
           </div>
@@ -710,158 +820,240 @@ const STATUS_BUCKETS = [
   { label: "Achieved", color: "#3F9142", bg: "#E5F1E5" },
 ];
 
-function AllActivitiesView({ updates }) {
+function TeamCountBadges({ filteredBySiOnly }) {
+  const counts = useMemo(() => {
+    const c = {};
+    TEAMS.forEach((t) => { c[t] = 0; });
+    filteredBySiOnly.forEach((a) => {
+      TEAMS.forEach((t) => { if (a.owner.includes(t)) c[t] += 1; });
+    });
+    return TEAMS.map((t) => ({ team: t, count: c[t] })).filter((x) => x.count > 0);
+  }, [filteredBySiOnly]);
+
+  return (
+    <div className="flex flex-wrap gap-2 mb-4">
+      {counts.map((c) => (
+        <div
+          key={c.team}
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium"
+          style={{ background: `${TEAM_COLORS[c.team] || C.muted}1A`, color: TEAM_COLORS[c.team] || C.inkSoft }}
+        >
+          {c.team} <span className="font-bold">{c.count}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function AllActivitiesView({ updates, projects, activityMeta }) {
+  const [subView, setSubView] = useState("tracker"); // tracker | map
   const [siFilter, setSiFilter] = useState("All");
   const [ownerFilter, setOwnerFilter] = useState("All");
-  const [statusFilter, setStatusFilter] = useState(null);
+  const [statusFilter, setStatusFilter] = useState("All");
+  const [quarterFilter, setQuarterFilter] = useState("Latest"); // Latest | Q1 | Q2 | Q3 | Q4
 
   const sis = useMemo(() => ["All", ...Array.from(new Set(ACTIVITIES.map((a) => a.si)))], []);
   const owners = useMemo(() => ["All", ...TEAMS], []);
+  const statusOptions = ["All", ...STATUS_BUCKETS.map((b) => b.label)];
+
+  const confidenceFor = (row) => {
+    if (quarterFilter === "Latest") return latestConfidence(updates[row]);
+    const q = updates[row]?.[quarterFilter];
+    return q ? q.confidence : null;
+  };
+
+  // SI filter applied first (used for the team-count badges, so they reflect
+  // the chosen strategy even before a team is picked)
+  const filteredBySiOnly = useMemo(
+    () => ACTIVITIES.filter((a) => siFilter === "All" || a.si === siFilter),
+    [siFilter]
+  );
+
+  const filtered = useMemo(() => {
+    return filteredBySiOnly.filter((a) => {
+      if (ownerFilter !== "All" && !a.owner.includes(ownerFilter)) return false;
+      if (statusFilter !== "All") {
+        const conf = confidenceFor(a.row);
+        if (confidenceInfo(conf).label !== statusFilter) return false;
+      }
+      return true;
+    });
+  }, [filteredBySiOnly, ownerFilter, statusFilter, quarterFilter, updates]);
+
+  // Chart reacts to SI + team filters (not to the status filter itself,
+  // since that's what the chart lets you set by clicking a bar)
+  const chartSource = useMemo(
+    () => filteredBySiOnly.filter((a) => ownerFilter === "All" || a.owner.includes(ownerFilter)),
+    [filteredBySiOnly, ownerFilter]
+  );
 
   const statusCounts = useMemo(() => {
     const counts = {};
     STATUS_BUCKETS.forEach((b) => { counts[b.label] = 0; });
-    ACTIVITIES.forEach((a) => {
-      const conf = latestConfidence(updates[a.row]);
+    chartSource.forEach((a) => {
+      const conf = confidenceFor(a.row);
       const label = confidenceInfo(conf).label;
       counts[label] = (counts[label] || 0) + 1;
     });
     return STATUS_BUCKETS.map((b) => ({ name: b.label, value: counts[b.label], color: b.color }));
-  }, [updates]);
+  }, [chartSource, quarterFilter, updates]);
 
-  const hasFilter = siFilter !== "All" || ownerFilter !== "All" || statusFilter;
-
-  const filtered = ACTIVITIES.filter((a) => {
-    if (siFilter !== "All" && a.si !== siFilter) return false;
-    if (ownerFilter !== "All" && !a.owner.includes(ownerFilter)) return false;
-    if (statusFilter) {
-      const conf = latestConfidence(updates[a.row]);
-      if (confidenceInfo(conf).label !== statusFilter) return false;
-    }
-    return true;
-  });
+  const hasFilter = siFilter !== "All" || ownerFilter !== "All" || statusFilter !== "All";
 
   return (
     <div>
-      <div
-        className="rounded-lg p-4 mb-5"
-        style={{ background: C.paperRaised, border: `1px solid ${C.lineSoft}` }}
-      >
-        <div className="text-xs font-semibold mb-2" style={{ color: C.inkSoft }}>
-          All {ACTIVITIES.length} activities, by confidence — click a bar to filter
-        </div>
-        <ResponsiveContainer width="100%" height={160}>
-          <BarChart data={statusCounts} layout="vertical" margin={{ top: 0, right: 16, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke={C.lineSoft} horizontal={false} />
-            <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11, fill: C.muted }} axisLine={{ stroke: C.line }} tickLine={false} />
-            <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: C.inkSoft }} axisLine={false} tickLine={false} width={100} />
-            <Tooltip contentStyle={{ fontSize: 12, borderRadius: 6, border: `1px solid ${C.line}` }} />
-            <Bar
-              dataKey="value"
-              radius={[0, 4, 4, 0]}
-              barSize={16}
-              cursor="pointer"
-              onClick={(d) => setStatusFilter((s) => (s === d.name ? null : d.name))}
-            >
-              {statusCounts.map((d, i) => (
-                <Cell key={i} fill={d.color} opacity={statusFilter && statusFilter !== d.name ? 0.35 : 1} />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-3 mb-5">
-        <select
-          value={siFilter}
-          onChange={(e) => setSiFilter(e.target.value)}
-          className="px-3 py-1.5 rounded-md text-sm"
-          style={{ border: `1.5px solid ${C.line}`, background: C.paperRaised, color: C.ink }}
-        >
-          {sis.map((s) => (
-            <option key={s} value={s}>
-              {s === "All" ? "All strategic initiatives" : s}
-            </option>
-          ))}
-        </select>
-        <select
-          value={ownerFilter}
-          onChange={(e) => setOwnerFilter(e.target.value)}
-          className="px-3 py-1.5 rounded-md text-sm"
-          style={{ border: `1.5px solid ${C.line}`, background: C.paperRaised, color: C.ink }}
-        >
-          {owners.map((o) => (
-            <option key={o} value={o}>
-              {o === "All" ? "All teams" : o}
-            </option>
-          ))}
-        </select>
-        {statusFilter && (
-          <Pill color={C.tealDeep} bg={C.tealTint}>
-            {statusFilter}
-          </Pill>
-        )}
-        {hasFilter && (
+      <div className="flex gap-2 mb-5">
+        {[{ id: "tracker", label: "Tracker" }, { id: "map", label: "Map" }].map((t) => (
           <button
-            onClick={() => { setSiFilter("All"); setOwnerFilter("All"); setStatusFilter(null); }}
-            className="text-xs underline"
-            style={{ color: C.tealDeep }}
+            key={t.id}
+            onClick={() => setSubView(t.id)}
+            className="px-3.5 py-1.5 rounded-md text-sm font-medium"
+            style={{
+              background: subView === t.id ? C.teal : C.paperRaised,
+              color: subView === t.id ? "#fff" : C.inkSoft,
+              border: `1.5px solid ${subView === t.id ? C.teal : C.line}`,
+            }}
           >
-            Clear filters
+            {t.label}
           </button>
-        )}
-        {hasFilter && (
-          <span className="text-xs" style={{ color: C.muted }}>
-            {filtered.length} activities
-          </span>
-        )}
+        ))}
       </div>
 
-      {!hasFilter ? (
-        <div
-          className="text-sm text-center px-4 py-8 rounded-lg"
-          style={{ background: C.tealTint, color: C.tealDeep }}
-        >
-          Select a strategic initiative, a team, or click a bar above to see the list of activities.
-        </div>
-      ) : (
-        <div className="rounded-lg overflow-hidden" style={{ border: `1px solid ${C.lineSoft}` }}>
-          <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
-            <thead>
-              <tr style={{ background: C.lineSoft }}>
-                <th className="text-left px-3 py-2 font-semibold" style={{ color: C.inkSoft }}>Output</th>
-                <th className="text-left px-3 py-2 font-semibold" style={{ color: C.inkSoft }}>Activity</th>
-                <th className="text-left px-3 py-2 font-semibold" style={{ color: C.inkSoft }}>Owner</th>
-                <th className="text-left px-3 py-2 font-semibold" style={{ color: C.inkSoft }}>Last updated</th>
-                <th className="text-left px-3 py-2 font-semibold" style={{ color: C.inkSoft }}>Confidence target will be met</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((a) => {
-                const latest = lastUpdatedLabel(updates[a.row]);
-                const conf = latestConfidence(updates[a.row]);
-                const info = confidenceInfo(conf);
-                return (
-                  <tr key={a.row} style={{ borderTop: `1px solid ${C.lineSoft}`, background: C.paperRaised }}>
-                    <td className="px-3 py-2 whitespace-nowrap align-top" style={{ color: C.teal }}>{a.output}</td>
-                    <td className="px-3 py-2 align-top" style={{ color: C.ink }}>{a.activity}</td>
-                    <td className="px-3 py-2 align-top">
-                      <OwnerPills owner={a.owner} />
-                    </td>
-                    <td className="px-3 py-2 whitespace-nowrap align-top text-xs" style={{ color: latest ? C.inkSoft : C.muted }}>
-                      {latest ? latest.toLocaleDateString() : "Not updated"}
-                    </td>
-                    <td className="px-3 py-2 whitespace-nowrap align-top">
-                      <Pill color={info.color} bg={info.bg}>
-                        {conf != null ? `${conf}/10 · ${info.label}` : info.label}
-                      </Pill>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+      {subView === "map" && (
+        <WorldMap projects={projects} activities={ACTIVITIES} activityMeta={activityMeta} />
+      )}
+
+      {subView === "tracker" && (
+        <>
+          <TeamCountBadges filteredBySiOnly={filteredBySiOnly} />
+
+          <div
+            className="rounded-lg p-4 mb-5"
+            style={{ background: C.paperRaised, border: `1px solid ${C.lineSoft}` }}
+          >
+            <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+              <div className="text-xs font-semibold" style={{ color: C.inkSoft }}>
+                {chartSource.length} activities, by status ({quarterFilter === "Latest" ? "most recent report" : quarterFilter}) — click a bar to filter
+              </div>
+              <div className="flex gap-1">
+                {["Latest", ...QUARTERS].map((q) => (
+                  <button
+                    key={q}
+                    onClick={() => setQuarterFilter(q)}
+                    className="px-2.5 py-1 rounded text-xs font-medium"
+                    style={{
+                      background: quarterFilter === q ? C.teal : C.paper,
+                      color: quarterFilter === q ? "#fff" : C.inkSoft,
+                      border: `1px solid ${quarterFilter === q ? C.teal : C.line}`,
+                    }}
+                  >
+                    {q}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <ResponsiveContainer width="100%" height={160}>
+              <BarChart data={statusCounts} layout="vertical" margin={{ top: 0, right: 16, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke={C.lineSoft} horizontal={false} />
+                <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11, fill: C.muted }} axisLine={{ stroke: C.line }} tickLine={false} />
+                <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: C.inkSoft }} axisLine={false} tickLine={false} width={100} />
+                <Tooltip contentStyle={{ fontSize: 12, borderRadius: 6, border: `1px solid ${C.line}` }} />
+                <Bar
+                  dataKey="value"
+                  radius={[0, 4, 4, 0]}
+                  barSize={16}
+                  cursor="pointer"
+                  onClick={(d) => setStatusFilter((s) => (s === d.name ? "All" : d.name))}
+                >
+                  {statusCounts.map((d, i) => (
+                    <Cell key={i} fill={d.color} opacity={statusFilter !== "All" && statusFilter !== d.name ? 0.35 : 1} />
+                  ))}
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3 mb-5">
+            <select
+              value={siFilter}
+              onChange={(e) => setSiFilter(e.target.value)}
+              className="px-3 py-1.5 rounded-md text-sm"
+              style={{ border: `1.5px solid ${C.line}`, background: C.paperRaised, color: C.ink }}
+            >
+              {sis.map((s) => (
+                <option key={s} value={s}>{s === "All" ? "All strategic initiatives" : s}</option>
+              ))}
+            </select>
+            <select
+              value={ownerFilter}
+              onChange={(e) => setOwnerFilter(e.target.value)}
+              className="px-3 py-1.5 rounded-md text-sm"
+              style={{ border: `1.5px solid ${C.line}`, background: C.paperRaised, color: C.ink }}
+            >
+              {owners.map((o) => (
+                <option key={o} value={o}>{o === "All" ? "All teams" : o}</option>
+              ))}
+            </select>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="px-3 py-1.5 rounded-md text-sm"
+              style={{ border: `1.5px solid ${C.line}`, background: C.paperRaised, color: C.ink }}
+            >
+              {statusOptions.map((s) => (
+                <option key={s} value={s}>{s === "All" ? "All statuses" : s}</option>
+              ))}
+            </select>
+            {hasFilter && (
+              <button
+                onClick={() => { setSiFilter("All"); setOwnerFilter("All"); setStatusFilter("All"); }}
+                className="text-xs underline"
+                style={{ color: C.tealDeep }}
+              >
+                Clear filters
+              </button>
+            )}
+            <span className="text-xs" style={{ color: C.muted }}>{filtered.length} activities</span>
+          </div>
+
+          <div className="rounded-lg overflow-hidden" style={{ border: `1px solid ${C.lineSoft}` }}>
+            <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
+              <thead>
+                <tr style={{ background: C.lineSoft }}>
+                  <th className="text-left px-3 py-2 font-semibold" style={{ color: C.inkSoft }}>Output</th>
+                  <th className="text-left px-3 py-2 font-semibold" style={{ color: C.inkSoft }}>Activity</th>
+                  <th className="text-left px-3 py-2 font-semibold" style={{ color: C.inkSoft }}>Owner</th>
+                  <th className="text-left px-3 py-2 font-semibold" style={{ color: C.inkSoft }}>Last updated</th>
+                  <th className="text-left px-3 py-2 font-semibold" style={{ color: C.inkSoft }}>{quarterFilter === "Latest" ? "Confidence (latest)" : `Confidence (${quarterFilter})`}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((a) => {
+                  const latest = lastUpdatedLabel(updates[a.row]);
+                  const conf = confidenceFor(a.row);
+                  const info = confidenceInfo(conf);
+                  return (
+                    <tr key={a.row} style={{ borderTop: `1px solid ${C.lineSoft}`, background: C.paperRaised }}>
+                      <td className="px-3 py-2 whitespace-nowrap align-top" style={{ color: C.teal }}>{a.output}</td>
+                      <td className="px-3 py-2 align-top" style={{ color: C.ink }}>{a.activity}</td>
+                      <td className="px-3 py-2 align-top">
+                        <OwnerPills owner={a.owner} />
+                      </td>
+                      <td className="px-3 py-2 whitespace-nowrap align-top text-xs" style={{ color: latest ? C.inkSoft : C.muted }}>
+                        {latest ? latest.toLocaleDateString() : "Not updated"}
+                      </td>
+                      <td className="px-3 py-2 whitespace-nowrap align-top">
+                        <Pill color={info.color} bg={info.bg}>
+                          {conf != null ? `${conf}/10 · ${info.label}` : info.label}
+                        </Pill>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
     </div>
   );
@@ -884,6 +1076,9 @@ const TEAM_COLORS = {
   "FRIMCO": "#F59C00",
   "Membership Engagement": "#3F9142",
   "Regional Leads": "#C2452F",
+  "Regional Lead (Americas & Caribbean)": "#C2452F",
+  "Regional Lead (Asia & Europe)": "#A8622F",
+  "Regional Lead (Africa & West Asia)": "#8C3A22",
   "Operations": "#5B5B5B",
   "ED": "#B4791F",
   "Risk Drivers Lead": "#0092B6",
@@ -899,6 +1094,25 @@ const DATA_SOURCE_OPTIONS = [
   "Governance documents",
   "Other",
 ];
+
+/* ============================== MAP DATA ============================== */
+
+// Seeded so the map/pilot works even before any admin has touched the
+// "Projects" tab in the Sheet. Anything added there later is merged in
+// alongside this (see loadProjects in App()).
+const DEFAULT_PROJECTS = [
+  {
+    project_id: "pilot-pep",
+    project_name: "Pre-Evacuation Platform",
+    countries: "Honduras, El Salvador, Guatemala",
+    donor: "Innovation Norway",
+    partners: "IOM, Terram Pacis",
+  },
+];
+
+// Full list of UN member/observer state names, for the "countries involved"
+// multi-select on an activity. Plain English short names.
+const WORLD_COUNTRIES = ["Afghanistan","Albania","Algeria","Andorra","Angola","Antigua and Barbuda","Argentina","Armenia","Australia","Austria","Azerbaijan","Bahamas","Bahrain","Bangladesh","Barbados","Belarus","Belgium","Belize","Benin","Bhutan","Bolivia","Bosnia and Herzegovina","Botswana","Brazil","Brunei","Bulgaria","Burkina Faso","Burundi","Cabo Verde","Cambodia","Cameroon","Canada","Central African Republic","Chad","Chile","China","Colombia","Comoros","Congo (Republic of)","Costa Rica","Croatia","Cuba","Cyprus","Czechia","Democratic Republic of the Congo","Denmark","Djibouti","Dominica","Dominican Republic","Ecuador","Egypt","El Salvador","Equatorial Guinea","Eritrea","Estonia","Eswatini","Ethiopia","Fiji","Finland","France","Gabon","Gambia","Georgia","Germany","Ghana","Greece","Grenada","Guatemala","Guinea","Guinea-Bissau","Guyana","Haiti","Honduras","Hungary","Iceland","India","Indonesia","Iran","Iraq","Ireland","Israel","Italy","Jamaica","Japan","Jordan","Kazakhstan","Kenya","Kiribati","Kosovo","Kuwait","Kyrgyzstan","Laos","Latvia","Lebanon","Lesotho","Liberia","Libya","Liechtenstein","Lithuania","Luxembourg","Madagascar","Malawi","Malaysia","Maldives","Mali","Malta","Marshall Islands","Mauritania","Mauritius","Mexico","Micronesia","Moldova","Monaco","Mongolia","Montenegro","Morocco","Mozambique","Myanmar","Namibia","Nauru","Nepal","Netherlands","New Zealand","Nicaragua","Niger","Nigeria","North Korea","North Macedonia","Norway","Oman","Pakistan","Palau","Palestine","Panama","Papua New Guinea","Paraguay","Peru","Philippines","Poland","Portugal","Qatar","Romania","Russia","Rwanda","Saint Kitts and Nevis","Saint Lucia","Saint Vincent and the Grenadines","Samoa","San Marino","Sao Tome and Principe","Saudi Arabia","Senegal","Serbia","Seychelles","Sierra Leone","Singapore","Slovakia","Slovenia","Solomon Islands","Somalia","South Africa","South Korea","South Sudan","Spain","Sri Lanka","Sudan","Suriname","Sweden","Switzerland","Syria","Taiwan","Tajikistan","Tanzania","Thailand","Timor-Leste","Togo","Tonga","Trinidad and Tobago","Tunisia","Turkey","Turkmenistan","Tuvalu","Uganda","Ukraine","United Arab Emirates","United Kingdom","United States","Uruguay","Uzbekistan","Vanuatu","Vatican City","Venezuela","Vietnam","Yemen","Zambia","Zimbabwe"];
 
 const SI_OUTCOMES = {
   "SI 1.1 — Harnessing practice-led learning": "Communities and member CSOs and their practices are at the forefront of developing useful, innovative approaches and generating knowledge on embedding risk-informed resilience approaches.",
@@ -947,15 +1161,6 @@ function TargetsView({ identity }) {
 
   return (
     <div className="max-w-3xl">
-      <div
-        className="text-sm leading-relaxed mb-8 px-4 py-3.5 rounded-lg"
-        style={{ background: C.tealTint, color: C.tealDeep }}
-      >
-        This is an application for monitoring our Global Strategy 2026–2030. A
-        tool that will help us understand our progress, challenges and
-        opportunities.
-      </div>
-
       {goals.map((goal) => {
         const sis = Array.from(new Set(OUTPUTS.filter((o) => o.goal === goal).map((o) => o.si)));
         return (
@@ -1045,6 +1250,196 @@ function TargetsView({ identity }) {
 }
 
 /* ============================== INDICATOR DASHBOARD ============================== */
+
+/* ============================== WORLD MAP ============================== */
+
+const WORLD_GEOJSON_URL = "https://raw.githubusercontent.com/johan/world.geo.json/master/countries.geo.json";
+
+// The public geojson uses slightly different names for a handful of
+// countries than our WORLD_COUNTRIES list / project data — map between them
+// so matching works both ways.
+const COUNTRY_NAME_ALIASES = {
+  "United States of America": "United States",
+  "Republic of the Congo": "Congo (Republic of)",
+  "Democratic Republic of the Congo": "Democratic Republic of the Congo",
+  "United Republic of Tanzania": "Tanzania",
+  "The Bahamas": "Bahamas",
+  "Ivory Coast": "Côte d'Ivoire",
+  "Macedonia": "North Macedonia",
+  "Swaziland": "Eswatini",
+  "Republic of Serbia": "Serbia",
+  "South Korea": "South Korea",
+  "North Korea": "North Korea",
+  "East Timor": "Timor-Leste",
+  "Czech Republic": "Czechia",
+  "Myanmar": "Myanmar",
+};
+function normCountry(name) {
+  if (!name) return name;
+  return COUNTRY_NAME_ALIASES[name] || name;
+}
+
+function splitList(str) {
+  return (str || "").split(",").map((s) => s.trim()).filter(Boolean);
+}
+
+function WorldMap({ projects, activities, activityMeta }) {
+  const [geo, setGeo] = useState(null);
+  const [loadError, setLoadError] = useState(false);
+  const [selected, setSelected] = useState(null);
+  const [hovered, setHovered] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(WORLD_GEOJSON_URL)
+      .then((r) => r.json())
+      .then((d) => { if (!cancelled) setGeo(d); })
+      .catch(() => { if (!cancelled) setLoadError(true); });
+    return () => { cancelled = true; };
+  }, []);
+
+  const countriesWithProjects = useMemo(() => {
+    const set = new Set();
+    projects.forEach((p) => splitList(p.countries).forEach((c) => set.add(normCountry(c))));
+    return set;
+  }, [projects]);
+
+  const projectsForCountry = (name) => projects.filter((p) => splitList(p.countries).map(normCountry).includes(name));
+  const activitiesForCountry = (name) => {
+    const rows = activities.filter((a) => {
+      const meta = activityMeta[a.row];
+      if (!meta?.countries) return false;
+      return splitList(meta.countries).map(normCountry).includes(name);
+    });
+    return rows;
+  };
+
+  if (loadError) {
+    return (
+      <div className="rounded-lg p-6 text-sm text-center" style={{ background: C.paperRaised, border: `1px solid ${C.lineSoft}`, color: C.muted }}>
+        Couldn't load the world map (no connection to the map data source). Try refreshing.
+      </div>
+    );
+  }
+
+  if (!geo) {
+    return (
+      <div className="rounded-lg p-10 flex items-center justify-center" style={{ background: C.paperRaised, border: `1px solid ${C.lineSoft}` }}>
+        <Loader2 className="animate-spin" size={20} color={C.teal} />
+      </div>
+    );
+  }
+
+  return (
+    <MapCanvas
+      geo={geo}
+      countriesWithProjects={countriesWithProjects}
+      selected={selected}
+      setSelected={setSelected}
+      hovered={hovered}
+      setHovered={setHovered}
+      projectsForCountry={projectsForCountry}
+      activitiesForCountry={activitiesForCountry}
+    />
+  );
+}
+
+// Separate inner component so the (fairly heavy) d3-geo projection math only
+// runs once geo data is actually available.
+function MapCanvas({ geo, countriesWithProjects, selected, setSelected, hovered, setHovered, projectsForCountry, activitiesForCountry }) {
+  const width = 960, height = 460;
+  const projection = d3.geoNaturalEarth1().fitSize([width, height], geo);
+  const pathGen = d3.geoPath(projection);
+
+  const selectedProjects = selected ? projectsForCountry(selected) : [];
+  const selectedActivities = selected ? activitiesForCountry(selected) : [];
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div
+        className="md:col-span-2 rounded-lg overflow-hidden relative"
+        style={{ background: "#E8F1F4", border: `1px solid ${C.lineSoft}` }}
+      >
+        {/* GNDR brand ring, echoing the logo mark, as a quiet corner motif */}
+        <div
+          className="absolute top-3 right-3 w-8 h-8 rounded-full pointer-events-none"
+          style={{ border: `3px solid ${C.amberBrand}`, opacity: 0.9 }}
+        />
+        <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto">
+          {geo.features.map((f, i) => {
+            const name = normCountry(f.properties?.name);
+            const hasProject = countriesWithProjects.has(name);
+            const isSelected = selected === name;
+            const isHovered = hovered === name;
+            return (
+              <path
+                key={i}
+                d={pathGen(f)}
+                fill={isSelected ? C.amberBrand : hasProject ? C.teal : "#CBD9DD"}
+                stroke="#FFFFFF"
+                strokeWidth={isSelected || isHovered ? 1.2 : 0.5}
+                opacity={isHovered && !isSelected ? 0.85 : 1}
+                style={{ cursor: hasProject ? "pointer" : "default", transition: "fill 0.15s" }}
+                onClick={() => hasProject && setSelected(isSelected ? null : name)}
+                onMouseEnter={() => setHovered(name)}
+                onMouseLeave={() => setHovered(null)}
+              />
+            );
+          })}
+        </svg>
+        <div className="absolute bottom-3 left-3 flex items-center gap-3 px-2.5 py-1.5 rounded-md text-[11px]" style={{ background: "rgba(255,255,255,0.9)" }}>
+          <span className="flex items-center gap-1"><span style={{ width: 10, height: 10, background: C.teal, display: "inline-block", borderRadius: 2 }} /> Active intervention</span>
+          <span className="flex items-center gap-1"><span style={{ width: 10, height: 10, background: C.amberBrand, display: "inline-block", borderRadius: 2 }} /> Selected</span>
+        </div>
+      </div>
+
+      <div className="rounded-lg p-4" style={{ background: C.paperRaised, border: `1px solid ${C.lineSoft}` }}>
+        {!selected ? (
+          <div className="text-sm text-center py-8" style={{ color: C.muted }}>
+            <Globe2 size={22} className="mx-auto mb-2" color={C.muted} />
+            Click a coloured country to see its projects and activities.
+          </div>
+        ) : (
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-sm font-bold" style={{ color: C.teal }}>{selected}</div>
+              <button onClick={() => setSelected(null)}><X size={16} color={C.muted} /></button>
+            </div>
+
+            <SectionLabel>Projects ({selectedProjects.length})</SectionLabel>
+            {selectedProjects.length === 0 ? (
+              <p className="text-xs mb-4" style={{ color: C.muted }}>None recorded.</p>
+            ) : (
+              <div className="space-y-2 mb-4">
+                {selectedProjects.map((p) => (
+                  <div key={p.project_id} className="text-xs px-2.5 py-2 rounded-md" style={{ background: C.tealTint }}>
+                    <div className="font-semibold" style={{ color: C.tealDeep }}>{p.project_name}</div>
+                    <div style={{ color: C.inkSoft }}>Donor: {p.donor || "—"}</div>
+                    <div style={{ color: C.inkSoft }}>Partners: {p.partners || "—"}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <SectionLabel>Activities ({selectedActivities.length})</SectionLabel>
+            {selectedActivities.length === 0 ? (
+              <p className="text-xs" style={{ color: C.muted }}>None tagged to this country yet.</p>
+            ) : (
+              <div className="space-y-1.5">
+                {selectedActivities.map((a) => (
+                  <div key={a.row} className="text-xs px-2.5 py-1.5 rounded-md" style={{ background: C.paper }}>
+                    <div style={{ color: C.ink }}>{a.activity}</div>
+                    <div style={{ color: C.muted }}>{a.output}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 function ratingInfo(rating) {
   const r = (rating || "no").toLowerCase();
@@ -1169,6 +1564,8 @@ function IndicatorCard({ si, ind, status, onSave, identity }) {
             </div>
           </div>
 
+{identity?.isAdmin ? (
+<>
           <div className="grid grid-cols-2 gap-2 mb-4">
             {RAG_OPTIONS.map((r) => (
               <button
@@ -1309,6 +1706,29 @@ function IndicatorCard({ si, ind, status, onSave, identity }) {
               Last updated by {status.updatedBy} · {new Date(status.updatedAt).toLocaleDateString()}
             </span>
           )}
+</>
+) : (
+          <div>
+            <div className="grid grid-cols-2 gap-3 mb-3 text-xs">
+              <div>
+                <div className="font-semibold mb-0.5" style={{ color: C.muted }}>Reported figure</div>
+                <div style={{ color: C.ink }}>{status?.entries?.length ? status.entries.length : "Not yet reported"}{ind.hasDenominator && status?.denominator ? ` / ${status.denominator}` : ""}</div>
+              </div>
+              <div>
+                <div className="font-semibold mb-0.5" style={{ color: C.muted }}>Data source</div>
+                <div style={{ color: C.ink }}>{Array.isArray(status?.dataSource) && status.dataSource.length ? status.dataSource.join(", ") : "—"}</div>
+              </div>
+            </div>
+            {status?.observations && (
+              <div className="text-xs mb-3" style={{ color: C.inkSoft }}>
+                <span className="font-semibold" style={{ color: C.muted }}>Observations: </span>{status.observations}
+              </div>
+            )}
+            <div className="flex items-center gap-1.5 text-xs px-3 py-2 rounded-md" style={{ background: C.lineSoft, color: C.muted }}>
+              <Lock size={12} /> Only admins can edit the Indicator dashboard.
+            </div>
+          </div>
+)}
         </div>
       )}
     </div>
@@ -1504,6 +1924,8 @@ export default function App() {
   const [view, setView] = useState("targets");
   const [updates, setUpdates] = useState({});
   const [indicatorStatus, setIndicatorStatus] = useState({});
+  const [activityMeta, setActivityMetaState] = useState({}); // { [row]: { type, smg, countries, ... } }
+  const [projects, setProjects] = useState(DEFAULT_PROJECTS);
   const [ready, setReady] = useState(false);
 
   // set document/app title
@@ -1520,7 +1942,7 @@ export default function App() {
       if (rememberedEmail) {
         const savedIdentity = await getIdentity(rememberedEmail);
         if (savedIdentity) {
-          setIdentity({ name: savedIdentity.name, email: savedIdentity.email, team: savedIdentity.team });
+          setIdentity({ name: savedIdentity.name, email: savedIdentity.email, team: savedIdentity.team, isAdmin: isAdminEmail(savedIdentity.email) });
         }
       }
       setLoadingIdentity(false);
@@ -1557,14 +1979,33 @@ export default function App() {
       });
       setIndicatorStatus(s);
 
+      // Activity metadata: Type/SMG (admin-editable) + Countries (owner-editable)
+      const metaRows = await getAllActivityMeta();
+      const metaByRow = {};
+      metaRows.forEach((r) => {
+        if (!r.activity_row) return;
+        metaByRow[r.activity_row] = { type: r.type || "", smg: r.smg || "", countries: r.countries || "" };
+      });
+      setActivityMetaState(metaByRow);
+
+      // Projects for the map — merge Sheet data over the seeded pilot default
+      const projectRows = await getAllProjects();
+      if (projectRows.length > 0) {
+        setProjects(projectRows.map((r) => ({
+          project_id: r.project_id, project_name: r.project_name,
+          countries: r.countries, donor: r.donor, partners: r.partners,
+        })));
+      }
+
       setReady(true);
     })();
   }, []);
 
   const handleSelectIdentity = async (id) => {
-    setIdentity(id);
+    const withAdmin = { ...id, isAdmin: isAdminEmail(id.email) };
+    setIdentity(withAdmin);
     rememberEmail(id.email);
-    await saveIdentityToSheet(id);
+    await saveIdentityToSheet(withAdmin);
   };
 
   const handleSaveUpdate = useCallback(async (row, quarter, payload) => {
@@ -1580,6 +2021,7 @@ export default function App() {
   }, [identity]);
 
   const handleSaveIndicatorStatus = useCallback(async (key, payload) => {
+    if (!identity?.isAdmin) return; // safety net — UI already hides the controls
     setIndicatorStatus((prev) => {
       const next = { ...prev, [key]: payload };
       return next;
@@ -1591,6 +2033,17 @@ export default function App() {
       observations: payload.observations, entriesJson: JSON.stringify(payload.entries || []),
       updatedBy: payload.updatedBy, updatedByEmail: identity?.email,
     });
+  }, [identity]);
+
+  const handleSetActivityTypeSmg = useCallback(async (row, { type, smg }) => {
+    if (!identity?.isAdmin) return;
+    setActivityMetaState((prev) => ({ ...prev, [row]: { ...(prev[row] || {}), ...(type !== undefined ? { type } : {}), ...(smg !== undefined ? { smg } : {}) } }));
+    await setActivityMeta({ activityRow: row, type, smg, updatedBy: identity.name, updatedByEmail: identity.email });
+  }, [identity]);
+
+  const handleSetActivityCountries = useCallback(async (row, countries) => {
+    setActivityMetaState((prev) => ({ ...prev, [row]: { ...(prev[row] || {}), countries } }));
+    await setActivityMeta({ activityRow: row, countries, updatedBy: identity?.name, updatedByEmail: identity?.email });
   }, [identity]);
 
   if (loadingIdentity || !ready) {
@@ -1608,7 +2061,7 @@ export default function App() {
   const nav = [
     { id: "targets", label: "What are we trying to achieve", icon: Radio },
     { id: "mine", label: "My activities", icon: ClipboardList },
-    { id: "all", label: "All activities", icon: LayoutGrid },
+    { id: "all", label: "Activity Tracker", icon: LayoutGrid },
     { id: "dashboard", label: "Indicator dashboard", icon: Gauge },
   ];
 
@@ -1696,22 +2149,28 @@ export default function App() {
         <div className="mb-7">
           <h1 className="text-2xl font-extrabold" style={{ color: C.teal }}>
             {view === "mine" && "My activities"}
-            {view === "all" && "All activities"}
+            {view === "all" && "Activity Tracker"}
             {view === "targets" && "What are we trying to achieve"}
             {view === "dashboard" && "Indicator dashboard"}
           </h1>
           <div className="h-[3px] w-12 mt-2 mb-3" style={{ background: C.amberBrand }} />
           <p className="text-sm" style={{ color: C.inkSoft }}>
             {view === "mine" && "Log a quarterly update against each activity you own."}
-            {view === "all" && "Browse every activity in the 2026-27 work plan."}
             {view === "dashboard" && ""}
           </p>
         </div>
 
         {view === "mine" && (
-          <MyActivitiesView identity={identity} updates={updates} onSaveUpdate={handleSaveUpdate} />
+          <MyActivitiesView
+            identity={identity}
+            updates={updates}
+            onSaveUpdate={handleSaveUpdate}
+            activityMeta={activityMeta}
+            onSetTypeSmg={handleSetActivityTypeSmg}
+            onSetCountries={handleSetActivityCountries}
+          />
         )}
-        {view === "all" && <AllActivitiesView updates={updates} />}
+        {view === "all" && <AllActivitiesView updates={updates} projects={projects} activityMeta={activityMeta} />}
         {view === "targets" && (
           <TargetsView identity={identity} />
         )}
