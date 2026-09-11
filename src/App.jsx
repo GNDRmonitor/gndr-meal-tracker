@@ -110,7 +110,7 @@ const OUTPUTS = [
   {id:"3.2.4",goal:"Goal 3",si:"SI 3.2 — Ensuring a resilient and sustainable network",short:"Institutional systems strengthened",y1:"Clean audit and statutory accounts delivered on time; policies and Risk Register updated; staffing gaps filled within 3 months; Staff Wellbeing & Workload survey conducted; Speak Up channel and safeguarding/manager training in place.",y24:"Outcome milestone: Clean annual audits and statutory compliance maintained; key institutional policies and risk systems reviewed annually; staff wellbeing, safeguarding and operational capacity monitored and improved."},
 ];
 
-const TEAMS = ["Programmes","Policy","FRIMCO","Membership Engagement","Operations","ED","Risk Drivers Lead","Regional Lead (Americas & Caribbean)","Regional Lead (Asia & Europe)","Regional Lead (Africa & West Asia)","Regional Leads","SLT"];
+const TEAMS = ["Programmes","Policy","FRIMCO","Membership Engagement","Operations","ED","Risk Drivers Lead","Regional Lead (Americas & Caribbean)","Regional Lead (Asia & Europe)","Regional Lead (Africa & West Asia)","Regional Leads"];
 
 // Admins can edit the Indicator dashboard and each activity's Type (Q/N) and
 // S·M·G fields. Everyone else ("Editor") can only edit their own team's
@@ -885,7 +885,7 @@ function QuarterProgressCards({ updates }) {
   );
 }
 
-function TeamManagementChart({ filteredBySiOnly }) {
+function TeamManagementChart({ filteredBySiOnly, ownerFilter, setOwnerFilter }) {
   const data = useMemo(() => {
     return TEAMS.map((team) => {
       const row = { team };
@@ -902,18 +902,29 @@ function TeamManagementChart({ filteredBySiOnly }) {
 
   // We don't have per-team confidence here (that needs `updates`), so this
   // chart shows plain assignment totals per team — simple bar, no stacking,
-  // with the total shown right on top of each bar.
+  // with the total shown right on top of each bar. Clicking a bar filters
+  // the status chart and the activity list below by that team.
   return (
     <div className="rounded-lg p-4 mb-5" style={{ background: C.paperRaised, border: `1px solid ${C.lineSoft}` }}>
-      <div className="text-xs font-semibold mb-2" style={{ color: C.inkSoft }}>Team management — total activities assigned per team</div>
+      <div className="text-xs font-semibold mb-2" style={{ color: C.inkSoft }}>Team management — total activities assigned per team · click a bar to filter</div>
       <ResponsiveContainer width="100%" height={Math.max(160, data.length * 34)}>
         <BarChart data={data} layout="vertical" margin={{ top: 0, right: 28, left: 0, bottom: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke={C.lineSoft} horizontal={false} />
           <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11, fill: C.muted }} axisLine={{ stroke: C.line }} tickLine={false} />
           <YAxis type="category" dataKey="team" tick={{ fontSize: 11, fill: C.inkSoft }} axisLine={false} tickLine={false} width={170} />
           <Tooltip contentStyle={{ fontSize: 12, borderRadius: 6, border: `1px solid ${C.line}` }} />
-          <Bar dataKey="total" radius={[0, 4, 4, 0]} barSize={16} fill={C.teal}>
+          <Bar
+            dataKey="total"
+            radius={[0, 4, 4, 0]}
+            barSize={16}
+            fill={C.teal}
+            cursor="pointer"
+            onClick={(d) => setOwnerFilter((o) => (o === d.team ? "All" : d.team))}
+          >
             <LabelList dataKey="total" position="right" style={{ fontSize: 11, fontWeight: 700, fill: C.inkSoft }} />
+            {data.map((d, i) => (
+              <Cell key={i} fill={d.team === ownerFilter ? C.amberBrand : C.teal} />
+            ))}
           </Bar>
         </BarChart>
       </ResponsiveContainer>
@@ -1017,10 +1028,10 @@ function AllActivitiesView({ updates, projects, activityMeta, identity, onSavePr
 
   const sis = useMemo(() => ["All", ...Array.from(new Set(ACTIVITIES.map((a) => a.si)))], []);
   const owners = useMemo(() => ["All", ...TEAMS], []);
-  const statusOptions = ["All", ...STATUS_BUCKETS.map((b) => b.label)];
+  // (statusOptions dropdown removed — the status chart itself is now the filter control)
 
   const confidenceFor = (row) => {
-    if (quarterFilter === "Latest") return latestConfidence(updates[row]);
+    if (quarterFilter === "Latest" || quarterFilter === "All") return latestConfidence(updates[row]);
     const q = updates[row]?.[quarterFilter];
     return q ? q.confidence : null;
   };
@@ -1089,7 +1100,7 @@ function AllActivitiesView({ updates, projects, activityMeta, identity, onSavePr
       {subView === "tracker" && (
         <>
           <QuarterProgressCards updates={updates} />
-          <TeamManagementChart filteredBySiOnly={filteredBySiOnly} />
+          <TeamManagementChart filteredBySiOnly={filteredBySiOnly} ownerFilter={ownerFilter} setOwnerFilter={setOwnerFilter} />
 
           <div
             className="rounded-lg p-4 mb-5"
@@ -1097,10 +1108,10 @@ function AllActivitiesView({ updates, projects, activityMeta, identity, onSavePr
           >
             <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
               <div className="text-xs font-semibold" style={{ color: C.inkSoft }}>
-                {chartSource.length} activities, by status ({quarterFilter === "Latest" ? "most recent report" : quarterFilter}) — click a bar to filter
+                {chartSource.length} activities, by status ({quarterFilter === "Latest" ? "most recent report" : quarterFilter === "All" ? "most recent report — see the table for all 4 quarters" : quarterFilter}) — click a bar to filter
               </div>
               <div className="flex gap-1">
-                {["Latest", ...QUARTERS].map((q) => (
+                {["Latest", ...QUARTERS, "All"].map((q) => (
                   <button
                     key={q}
                     onClick={() => setQuarterFilter(q)}
@@ -1111,7 +1122,7 @@ function AllActivitiesView({ updates, projects, activityMeta, identity, onSavePr
                       border: `1px solid ${quarterFilter === q ? C.teal : C.line}`,
                     }}
                   >
-                    {q}
+                    {q === "All" ? "All quarters" : q}
                   </button>
                 ))}
               </div>
@@ -1158,16 +1169,9 @@ function AllActivitiesView({ updates, projects, activityMeta, identity, onSavePr
                 <option key={o} value={o}>{o === "All" ? "All teams" : o}</option>
               ))}
             </select>
-            <select
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              className="px-3 py-1.5 rounded-md text-sm"
-              style={{ border: `1.5px solid ${C.line}`, background: C.paperRaised, color: C.ink }}
-            >
-              {statusOptions.map((s) => (
-                <option key={s} value={s}>{s === "All" ? "All statuses" : s}</option>
-              ))}
-            </select>
+            {statusFilter !== "All" && (
+              <Pill color={C.tealDeep} bg={C.tealTint}>{statusFilter}</Pill>
+            )}
             {hasFilter && (
               <button
                 onClick={() => { setSiFilter("All"); setOwnerFilter("All"); setStatusFilter("All"); }}
@@ -1188,7 +1192,9 @@ function AllActivitiesView({ updates, projects, activityMeta, identity, onSavePr
                   <th className="text-left px-3 py-2 font-semibold" style={{ color: C.inkSoft }}>Activity</th>
                   <th className="text-left px-3 py-2 font-semibold" style={{ color: C.inkSoft }}>Owner</th>
                   <th className="text-left px-3 py-2 font-semibold" style={{ color: C.inkSoft }}>Last updated</th>
-                  <th className="text-left px-3 py-2 font-semibold" style={{ color: C.inkSoft }}>{quarterFilter === "Latest" ? "Confidence (latest)" : `Confidence (${quarterFilter})`}</th>
+                  <th className="text-left px-3 py-2 font-semibold" style={{ color: C.inkSoft }}>
+                    {quarterFilter === "All" ? "Q1 – Q4" : quarterFilter === "Latest" ? "Confidence (latest)" : `Confidence (${quarterFilter})`}
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -1218,9 +1224,15 @@ function AllActivitiesView({ updates, projects, activityMeta, identity, onSavePr
                         {latest ? latest.toLocaleDateString() : "Not updated"}
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap align-top">
-                        <Pill color={info.color} bg={info.bg}>
-                          {conf != null ? `${conf}/10 · ${info.label}` : info.label}
-                        </Pill>
+                        {quarterFilter === "All" ? (
+                          <QuarterTrack
+                            statuses={Object.fromEntries(QUARTERS.map((q) => [q, updates[a.row]?.[q]?.confidence ?? null]))}
+                          />
+                        ) : (
+                          <Pill color={info.color} bg={info.bg}>
+                            {conf != null ? `${conf}/10 · ${info.label}` : info.label}
+                          </Pill>
+                        )}
                       </td>
                     </tr>
                   );
@@ -1264,7 +1276,7 @@ const TEAM_COLORS = {
   "Operations": "#5B5B5B",
   "ED": "#B4791F",
   "Risk Drivers Lead": "#0092B6",
-  "SLT": "#5B5B5B",
+  "SLT": "#5B5B5B", // kept for the contributor pill on a few activities, even though SLT owns none
   "To confirm": "#C2452F",
 };
 
@@ -2340,6 +2352,7 @@ export default function App() {
         setProjects(projectRows.map((r) => ({
           project_id: r.project_id, project_name: r.project_name,
           countries: r.countries, donor: r.donor, partners: r.partners,
+          duration: r.duration, phase: r.phase,
         })));
       }
 
