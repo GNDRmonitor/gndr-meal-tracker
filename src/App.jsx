@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { ChevronRight, ChevronDown, Circle, CheckCircle2, AlertTriangle, Radio, Target, ClipboardList, LayoutGrid, X, Loader2, Gauge, Download, Repeat, Lock, MapPin, Globe2 } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from "recharts";
+import { ChevronRight, ChevronDown, Circle, CheckCircle2, AlertTriangle, Radio, Target, ClipboardList, LayoutGrid, X, Loader2, Gauge, Download, Repeat, Lock, MapPin, Globe2, Pencil } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell, LabelList } from "recharts";
 import * as d3 from "d3";
 import {
   getIdentity, setIdentity as saveIdentityToSheet,
@@ -528,11 +528,13 @@ function TypeSmgBadges({ activity, meta, isAdmin, onSetTypeSmg }) {
     <div className="relative">
       <button
         onClick={(e) => { e.stopPropagation(); setEditing((v) => !v); }}
-        className="flex items-center gap-1.5"
+        className="flex items-center gap-1.5 px-1.5 py-0.5 rounded-md"
+        style={{ border: `1.5px dashed ${C.teal}` }}
         title="Admin: click to edit Type / S·M·G"
       >
         {effType ? <Pill color={C.tealDeep} bg={C.tealTint}>{effType === "Q" ? "Qualitative" : "Numeric"}</Pill> : <Pill color={C.muted} bg={C.lineSoft}>Type?</Pill>}
         {effSmg ? <Pill color={C.inkSoft} bg={C.lineSoft}>{effSmg}</Pill> : <Pill color={C.muted} bg={C.lineSoft}>S·M·G?</Pill>}
+        <Pencil size={11} color={C.teal} />
       </button>
       {editing && (
         <div
@@ -820,37 +822,171 @@ const STATUS_BUCKETS = [
   { label: "Achieved", color: "#3F9142", bg: "#E5F1E5" },
 ];
 
-function TeamCountBadges({ filteredBySiOnly }) {
-  const counts = useMemo(() => {
-    const c = {};
-    TEAMS.forEach((t) => { c[t] = 0; });
-    filteredBySiOnly.forEach((a) => {
-      TEAMS.forEach((t) => { if (a.owner.includes(t)) c[t] += 1; });
-    });
-    return TEAMS.map((t) => ({ team: t, count: c[t] })).filter((x) => x.count > 0);
-  }, [filteredBySiOnly]);
+function QuarterProgressCards({ updates }) {
+  const total = ACTIVITIES.length;
+
+  const cards = QUARTERS.map((q) => {
+    const reported = ACTIVITIES.filter((a) => updates[a.row]?.[q]).length;
+    const onTrack = ACTIVITIES.filter((a) => {
+      const conf = updates[a.row]?.[q]?.confidence;
+      return conf != null && conf >= 8;
+    }).length;
+    return {
+      label: q,
+      big: reported > 0 ? `${Math.round((reported / total) * 100)}%` : "0%",
+      sub: `${reported}/${total} reported · ${onTrack} on track`,
+    };
+  });
+
+  const achievedCount = ACTIVITIES.filter((a) => latestConfidence(updates[a.row]) === 10).length;
+  const achievementCard = {
+    label: "Achieved",
+    big: total > 0 ? `${Math.round((achievedCount / total) * 100)}%` : "0%",
+    sub: `${achievedCount}/${total} activities achieved`,
+  };
+
+  const allCards = [...cards, achievementCard];
 
   return (
-    <div className="flex flex-wrap gap-2 mb-4">
-      {counts.map((c) => (
+    <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-5">
+      {allCards.map((c, i) => (
         <div
-          key={c.team}
-          className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium"
-          style={{ background: `${TEAM_COLORS[c.team] || C.muted}1A`, color: TEAM_COLORS[c.team] || C.inkSoft }}
+          key={c.label}
+          className="rounded-lg p-3.5"
+          style={{
+            background: i === 4 ? C.tealTint : C.paperRaised,
+            border: `1px solid ${i === 4 ? C.teal : C.lineSoft}`,
+          }}
         >
-          {c.team} <span className="font-bold">{c.count}</span>
+          <div className="text-[11px] font-semibold uppercase tracking-wide mb-1" style={{ color: i === 4 ? C.tealDeep : C.muted }}>
+            {c.label}
+          </div>
+          <div className="text-2xl font-extrabold mb-0.5" style={{ color: i === 4 ? C.tealDeep : C.ink }}>{c.big}</div>
+          <div className="text-[11px]" style={{ color: i === 4 ? C.tealDeep : C.muted }}>{c.sub}</div>
         </div>
       ))}
     </div>
   );
 }
 
-function AllActivitiesView({ updates, projects, activityMeta }) {
+function TeamManagementChart({ filteredBySiOnly }) {
+  const data = useMemo(() => {
+    return TEAMS.map((team) => {
+      const row = { team };
+      let total = 0;
+      STATUS_BUCKETS.forEach((b) => { row[b.label] = 0; });
+      filteredBySiOnly.forEach((a) => {
+        if (!a.owner.includes(team)) return;
+        total += 1;
+      });
+      row.total = total;
+      return row;
+    }).filter((r) => r.total > 0);
+  }, [filteredBySiOnly]);
+
+  // We don't have per-team confidence here (that needs `updates`), so this
+  // chart shows plain assignment totals per team — simple bar, no stacking,
+  // with the total shown right on top of each bar.
+  return (
+    <div className="rounded-lg p-4 mb-5" style={{ background: C.paperRaised, border: `1px solid ${C.lineSoft}` }}>
+      <div className="text-xs font-semibold mb-2" style={{ color: C.inkSoft }}>Team management — total activities assigned per team</div>
+      <ResponsiveContainer width="100%" height={Math.max(160, data.length * 34)}>
+        <BarChart data={data} layout="vertical" margin={{ top: 0, right: 28, left: 0, bottom: 0 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke={C.lineSoft} horizontal={false} />
+          <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11, fill: C.muted }} axisLine={{ stroke: C.line }} tickLine={false} />
+          <YAxis type="category" dataKey="team" tick={{ fontSize: 11, fill: C.inkSoft }} axisLine={false} tickLine={false} width={170} />
+          <Tooltip contentStyle={{ fontSize: 12, borderRadius: 6, border: `1px solid ${C.line}` }} />
+          <Bar dataKey="total" radius={[0, 4, 4, 0]} barSize={16} fill={C.teal}>
+            <LabelList dataKey="total" position="right" style={{ fontSize: 11, fontWeight: 700, fill: C.inkSoft }} />
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+function ActivityDetailModal({ activity, updates, meta, onClose }) {
+  if (!activity) return null;
+  const contributors = splitList(activity.contrib);
+  const effType = meta?.type || activity.type || "—";
+  const effSmg = meta?.smg || activity.smg || "—";
+  const countries = splitList(meta?.countries);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.4)" }} onClick={onClose}>
+      <div
+        className="rounded-xl max-w-lg w-full max-h-[85vh] overflow-y-auto"
+        style={{ background: "#fff" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="px-5 py-4 flex items-start justify-between" style={{ borderBottom: `1px solid ${C.lineSoft}` }}>
+          <div>
+            <div className="text-xs font-semibold mb-1" style={{ color: C.tealDeep }}>{activity.output} · {activity.si}</div>
+            <div className="text-base font-bold" style={{ color: C.ink }}>{activity.activity}</div>
+          </div>
+          <button onClick={onClose}><X size={18} color={C.muted} /></button>
+        </div>
+
+        <div className="px-5 py-4 space-y-4">
+          <div className="grid grid-cols-2 gap-3 text-xs">
+            <div>
+              <div className="font-semibold mb-0.5" style={{ color: C.muted }}>Owner</div>
+              <OwnerPills owner={activity.owner} />
+            </div>
+            <div>
+              <div className="font-semibold mb-0.5" style={{ color: C.muted }}>Contributors</div>
+              <div style={{ color: C.ink }}>{contributors.length ? contributors.join(", ") : "—"}</div>
+            </div>
+            <div>
+              <div className="font-semibold mb-0.5" style={{ color: C.muted }}>Type</div>
+              <div style={{ color: C.ink }}>{effType === "Q" ? "Qualitative" : effType === "N" ? "Numeric" : "—"}</div>
+            </div>
+            <div>
+              <div className="font-semibold mb-0.5" style={{ color: C.muted }}>S·M·G</div>
+              <div style={{ color: C.ink }}>{effSmg || "—"}</div>
+            </div>
+            {countries.length > 0 && (
+              <div className="col-span-2">
+                <div className="font-semibold mb-0.5" style={{ color: C.muted }}>Countries</div>
+                <div style={{ color: C.ink }}>{countries.join(", ")}</div>
+              </div>
+            )}
+          </div>
+
+          <div>
+            <SectionLabel>Quarterly reports</SectionLabel>
+            <div className="space-y-2 mt-2">
+              {QUARTERS.map((q) => {
+                const u = updates?.[q];
+                const info = confidenceInfo(u?.confidence);
+                return (
+                  <div key={q} className="rounded-md p-2.5" style={{ background: C.paper, border: `1px solid ${C.lineSoft}` }}>
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-xs font-bold" style={{ color: C.ink }}>{q}</span>
+                      <Pill color={info.color} bg={info.bg}>{u?.confidence != null ? `${u.confidence}/10 · ${info.label}` : info.label}</Pill>
+                    </div>
+                    {u?.plan && <div className="text-xs mb-1" style={{ color: C.inkSoft }}><span className="font-semibold">Plan: </span>{u.plan}</div>}
+                    {u?.whatHappened && <div className="text-xs mb-1" style={{ color: C.inkSoft }}><span className="font-semibold">What happened: </span>{u.whatHappened}</div>}
+                    {u?.adaptation && <div className="text-xs" style={{ color: C.inkSoft }}><span className="font-semibold">Adaptation: </span>{u.adaptation}</div>}
+                    {!u && <div className="text-xs" style={{ color: C.muted }}>Not yet reported.</div>}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AllActivitiesView({ updates, projects, activityMeta, identity, onSaveProject, onSetTypeSmg }) {
   const [subView, setSubView] = useState("tracker"); // tracker | map
   const [siFilter, setSiFilter] = useState("All");
   const [ownerFilter, setOwnerFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState("All");
   const [quarterFilter, setQuarterFilter] = useState("Latest"); // Latest | Q1 | Q2 | Q3 | Q4
+  const [selectedActivity, setSelectedActivity] = useState(null);
 
   const sis = useMemo(() => ["All", ...Array.from(new Set(ACTIVITIES.map((a) => a.si)))], []);
   const owners = useMemo(() => ["All", ...TEAMS], []);
@@ -920,12 +1056,13 @@ function AllActivitiesView({ updates, projects, activityMeta }) {
       </div>
 
       {subView === "map" && (
-        <WorldMap projects={projects} activities={ACTIVITIES} activityMeta={activityMeta} />
+        <WorldMap projects={projects} activities={ACTIVITIES} activityMeta={activityMeta} identity={identity} onSaveProject={onSaveProject} />
       )}
 
       {subView === "tracker" && (
         <>
-          <TeamCountBadges filteredBySiOnly={filteredBySiOnly} />
+          <QuarterProgressCards updates={updates} />
+          <TeamManagementChart filteredBySiOnly={filteredBySiOnly} />
 
           <div
             className="rounded-lg p-4 mb-5"
@@ -1033,9 +1170,20 @@ function AllActivitiesView({ updates, projects, activityMeta }) {
                   const conf = confidenceFor(a.row);
                   const info = confidenceInfo(conf);
                   return (
-                    <tr key={a.row} style={{ borderTop: `1px solid ${C.lineSoft}`, background: C.paperRaised }}>
+                    <tr
+                      key={a.row}
+                      style={{ borderTop: `1px solid ${C.lineSoft}`, background: C.paperRaised, cursor: "pointer" }}
+                      onClick={() => setSelectedActivity(a)}
+                    >
                       <td className="px-3 py-2 whitespace-nowrap align-top" style={{ color: C.teal }}>{a.output}</td>
-                      <td className="px-3 py-2 align-top" style={{ color: C.ink }}>{a.activity}</td>
+                      <td className="px-3 py-2 align-top" style={{ color: C.ink }}>
+                        {a.activity}
+                        {identity?.isAdmin && (
+                          <div className="mt-1.5" onClick={(e) => e.stopPropagation()}>
+                            <TypeSmgBadges activity={a} meta={activityMeta[a.row]} isAdmin={identity?.isAdmin} onSetTypeSmg={onSetTypeSmg} />
+                          </div>
+                        )}
+                      </td>
                       <td className="px-3 py-2 align-top">
                         <OwnerPills owner={a.owner} />
                       </td>
@@ -1055,6 +1203,13 @@ function AllActivitiesView({ updates, projects, activityMeta }) {
           </div>
         </>
       )}
+
+      <ActivityDetailModal
+        activity={selectedActivity}
+        updates={selectedActivity ? updates[selectedActivity.row] : null}
+        meta={selectedActivity ? activityMeta[selectedActivity.row] : null}
+        onClose={() => setSelectedActivity(null)}
+      />
     </div>
   );
 }
@@ -1100,6 +1255,8 @@ const DATA_SOURCE_OPTIONS = [
 // Seeded so the map/pilot works even before any admin has touched the
 // "Projects" tab in the Sheet. Anything added there later is merged in
 // alongside this (see loadProjects in App()).
+const PROJECT_PHASES = ["Pre-launch", "Inception", "Implementation", "Closing", "Completed"];
+
 const DEFAULT_PROJECTS = [
   {
     project_id: "pilot-pep",
@@ -1107,6 +1264,8 @@ const DEFAULT_PROJECTS = [
     countries: "Honduras, El Salvador, Guatemala",
     donor: "Innovation Norway",
     partners: "IOM, Terram Pacis",
+    duration: "2026–2028",
+    phase: "Implementation",
   },
 ];
 
@@ -1283,11 +1442,138 @@ function splitList(str) {
   return (str || "").split(",").map((s) => s.trim()).filter(Boolean);
 }
 
-function WorldMap({ projects, activities, activityMeta }) {
+function ProjectForm({ existing, onSave, onCancel }) {
+  const [name, setName] = useState(existing?.project_name || "");
+  const [countries, setCountries] = useState(splitList(existing?.countries));
+  const [donor, setDonor] = useState(existing?.donor || "");
+  const [partners, setPartners] = useState(existing?.partners || "");
+  const [duration, setDuration] = useState(existing?.duration || "");
+  const [phase, setPhase] = useState(existing?.phase || PROJECT_PHASES[0]);
+  const [countryOpen, setCountryOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const toggleCountry = (c) => {
+    setCountries((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
+  };
+
+  const handleSave = async () => {
+    if (!name.trim() || countries.length === 0) return;
+    setSaving(true);
+    await onSave({
+      project_id: existing?.project_id || `proj-${Date.now()}`,
+      project_name: name.trim(), countries: countries.join(", "),
+      donor: donor.trim(), partners: partners.trim(), duration: duration.trim(), phase,
+    });
+    setSaving(false);
+  };
+
+  return (
+    <div className="rounded-lg p-4 mb-4" style={{ background: "#fff", border: `1.5px solid ${C.teal}` }}>
+      <div className="text-sm font-bold mb-3" style={{ color: C.teal }}>
+        {existing ? "Edit project" : "Add a project"}
+      </div>
+
+      <label className="block text-xs font-semibold mb-1" style={{ color: C.ink }}>Project name</label>
+      <input
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        className="w-full px-3 py-2 rounded-md text-sm outline-none mb-3"
+        style={{ border: `1.5px solid ${C.line}`, background: C.paper, color: C.ink }}
+      />
+
+      <label className="block text-xs font-semibold mb-1" style={{ color: C.ink }}>Country / countries</label>
+      <div className="relative mb-3">
+        <button
+          onClick={() => setCountryOpen((v) => !v)}
+          className="w-full text-left px-3 py-2 rounded-md text-sm"
+          style={{ border: `1.5px solid ${C.line}`, background: C.paper, color: countries.length ? C.ink : C.muted }}
+        >
+          {countries.length ? countries.join(", ") : "Select countries…"}
+        </button>
+        {countryOpen && (
+          <div className="absolute z-20 top-full left-0 mt-1 rounded-lg shadow-lg overflow-hidden w-full" style={{ background: "#fff", border: `1px solid ${C.line}` }}>
+            <div className="max-h-48 overflow-y-auto p-1.5">
+              {WORLD_COUNTRIES.map((c) => (
+                <label key={c} className="flex items-center gap-2 px-2 py-1 rounded text-xs cursor-pointer" style={{ color: C.ink }}>
+                  <input type="checkbox" checked={countries.includes(c)} onChange={() => toggleCountry(c)} />
+                  {c}
+                </label>
+              ))}
+            </div>
+            <button onClick={() => setCountryOpen(false)} className="w-full text-xs py-1.5" style={{ background: C.lineSoft, color: C.tealDeep }}>Done</button>
+          </div>
+        )}
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 mb-3">
+        <div>
+          <label className="block text-xs font-semibold mb-1" style={{ color: C.ink }}>Donor</label>
+          <input
+            value={donor}
+            onChange={(e) => setDonor(e.target.value)}
+            className="w-full px-3 py-2 rounded-md text-sm outline-none"
+            style={{ border: `1.5px solid ${C.line}`, background: C.paper, color: C.ink }}
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-semibold mb-1" style={{ color: C.ink }}>Partners</label>
+          <input
+            value={partners}
+            onChange={(e) => setPartners(e.target.value)}
+            className="w-full px-3 py-2 rounded-md text-sm outline-none"
+            style={{ border: `1.5px solid ${C.line}`, background: C.paper, color: C.ink }}
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3 mb-4">
+        <div>
+          <label className="block text-xs font-semibold mb-1" style={{ color: C.ink }}>Duration</label>
+          <input
+            value={duration}
+            onChange={(e) => setDuration(e.target.value)}
+            placeholder="e.g. 2026–2028"
+            className="w-full px-3 py-2 rounded-md text-sm outline-none"
+            style={{ border: `1.5px solid ${C.line}`, background: C.paper, color: C.ink }}
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-semibold mb-1" style={{ color: C.ink }}>Phase</label>
+          <select
+            value={phase}
+            onChange={(e) => setPhase(e.target.value)}
+            className="w-full px-3 py-2 rounded-md text-sm outline-none"
+            style={{ border: `1.5px solid ${C.line}`, background: C.paper, color: C.ink }}
+          >
+            {PROJECT_PHASES.map((p) => <option key={p} value={p}>{p}</option>)}
+          </select>
+        </div>
+      </div>
+
+      <div className="flex gap-2">
+        <button
+          onClick={handleSave}
+          disabled={saving || !name.trim() || countries.length === 0}
+          className="px-4 py-2 rounded-md text-xs font-semibold"
+          style={{ background: C.teal, color: "#fff", opacity: saving || !name.trim() || countries.length === 0 ? 0.5 : 1 }}
+        >
+          {saving ? "Saving…" : "Save project"}
+        </button>
+        <button onClick={onCancel} className="px-4 py-2 rounded-md text-xs font-semibold" style={{ color: C.inkSoft, border: `1.5px solid ${C.line}` }}>
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function WorldMap({ projects, activities, activityMeta, identity, onSaveProject }) {
   const [geo, setGeo] = useState(null);
   const [loadError, setLoadError] = useState(false);
   const [selected, setSelected] = useState(null);
   const [hovered, setHovered] = useState(null);
+  const [showForm, setShowForm] = useState(false);
+  const [editingProject, setEditingProject] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -1306,12 +1592,17 @@ function WorldMap({ projects, activities, activityMeta }) {
 
   const projectsForCountry = (name) => projects.filter((p) => splitList(p.countries).map(normCountry).includes(name));
   const activitiesForCountry = (name) => {
-    const rows = activities.filter((a) => {
+    return activities.filter((a) => {
       const meta = activityMeta[a.row];
       if (!meta?.countries) return false;
       return splitList(meta.countries).map(normCountry).includes(name);
     });
-    return rows;
+  };
+
+  const handleSaveProject = async (payload) => {
+    await onSaveProject(payload);
+    setShowForm(false);
+    setEditingProject(null);
   };
 
   if (loadError) {
@@ -1322,31 +1613,54 @@ function WorldMap({ projects, activities, activityMeta }) {
     );
   }
 
-  if (!geo) {
-    return (
-      <div className="rounded-lg p-10 flex items-center justify-center" style={{ background: C.paperRaised, border: `1px solid ${C.lineSoft}` }}>
-        <Loader2 className="animate-spin" size={20} color={C.teal} />
-      </div>
-    );
-  }
-
   return (
-    <MapCanvas
-      geo={geo}
-      countriesWithProjects={countriesWithProjects}
-      selected={selected}
-      setSelected={setSelected}
-      hovered={hovered}
-      setHovered={setHovered}
-      projectsForCountry={projectsForCountry}
-      activitiesForCountry={activitiesForCountry}
-    />
+    <div>
+      {identity?.isAdmin && (
+        <div className="flex justify-end mb-3">
+          {!showForm && (
+            <button
+              onClick={() => { setEditingProject(null); setShowForm(true); }}
+              className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-md"
+              style={{ background: C.teal, color: "#fff" }}
+            >
+              <MapPin size={13} /> Add a project
+            </button>
+          )}
+        </div>
+      )}
+      {showForm && (
+        <ProjectForm
+          existing={editingProject}
+          onSave={handleSaveProject}
+          onCancel={() => { setShowForm(false); setEditingProject(null); }}
+        />
+      )}
+
+      {!geo ? (
+        <div className="rounded-lg p-10 flex items-center justify-center" style={{ background: C.paperRaised, border: `1px solid ${C.lineSoft}` }}>
+          <Loader2 className="animate-spin" size={20} color={C.teal} />
+        </div>
+      ) : (
+        <MapCanvas
+          geo={geo}
+          countriesWithProjects={countriesWithProjects}
+          selected={selected}
+          setSelected={setSelected}
+          hovered={hovered}
+          setHovered={setHovered}
+          projectsForCountry={projectsForCountry}
+          activitiesForCountry={activitiesForCountry}
+          identity={identity}
+          onEditProject={(p) => { setEditingProject(p); setShowForm(true); }}
+        />
+      )}
+    </div>
   );
 }
 
 // Separate inner component so the (fairly heavy) d3-geo projection math only
 // runs once geo data is actually available.
-function MapCanvas({ geo, countriesWithProjects, selected, setSelected, hovered, setHovered, projectsForCountry, activitiesForCountry }) {
+function MapCanvas({ geo, countriesWithProjects, selected, setSelected, hovered, setHovered, projectsForCountry, activitiesForCountry, identity, onEditProject }) {
   const width = 960, height = 460;
   const projection = d3.geoNaturalEarth1().fitSize([width, height], geo);
   const pathGen = d3.geoPath(projection);
@@ -1357,15 +1671,19 @@ function MapCanvas({ geo, countriesWithProjects, selected, setSelected, hovered,
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
       <div
-        className="md:col-span-2 rounded-lg overflow-hidden relative"
-        style={{ background: "#E8F1F4", border: `1px solid ${C.lineSoft}` }}
+        className="md:col-span-2 rounded-xl overflow-hidden relative"
+        style={{ background: "linear-gradient(180deg, #F0F6F8 0%, #E3EEF1 100%)", border: `1px solid ${C.lineSoft}`, boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}
       >
-        {/* GNDR brand ring, echoing the logo mark, as a quiet corner motif */}
-        <div
-          className="absolute top-3 right-3 w-8 h-8 rounded-full pointer-events-none"
-          style={{ border: `3px solid ${C.amberBrand}`, opacity: 0.9 }}
-        />
-        <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto">
+        <div className="flex items-center gap-2 px-4 pt-4">
+          <div
+            className="w-6 h-6 rounded-full flex items-center justify-center shrink-0"
+            style={{ border: `2.5px solid ${C.amberBrand}` }}
+          >
+            <span className="text-[7px] font-extrabold" style={{ color: C.tealDeep }}>GNDR</span>
+          </div>
+          <div className="text-xs font-bold tracking-wide" style={{ color: C.tealDeep }}>WHERE WE WORK</div>
+        </div>
+        <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto px-2">
           {geo.features.map((f, i) => {
             const name = normCountry(f.properties?.name);
             const hasProject = countriesWithProjects.has(name);
@@ -1375,9 +1693,9 @@ function MapCanvas({ geo, countriesWithProjects, selected, setSelected, hovered,
               <path
                 key={i}
                 d={pathGen(f)}
-                fill={isSelected ? C.amberBrand : hasProject ? C.teal : "#CBD9DD"}
-                stroke="#FFFFFF"
-                strokeWidth={isSelected || isHovered ? 1.2 : 0.5}
+                fill={isSelected ? C.amberBrand : hasProject ? C.teal : "#D3E1E5"}
+                stroke="#F7FAFB"
+                strokeWidth={isSelected || isHovered ? 1.3 : 0.6}
                 opacity={isHovered && !isSelected ? 0.85 : 1}
                 style={{ cursor: hasProject ? "pointer" : "default", transition: "fill 0.15s" }}
                 onClick={() => hasProject && setSelected(isSelected ? null : name)}
@@ -1387,13 +1705,14 @@ function MapCanvas({ geo, countriesWithProjects, selected, setSelected, hovered,
             );
           })}
         </svg>
-        <div className="absolute bottom-3 left-3 flex items-center gap-3 px-2.5 py-1.5 rounded-md text-[11px]" style={{ background: "rgba(255,255,255,0.9)" }}>
-          <span className="flex items-center gap-1"><span style={{ width: 10, height: 10, background: C.teal, display: "inline-block", borderRadius: 2 }} /> Active intervention</span>
-          <span className="flex items-center gap-1"><span style={{ width: 10, height: 10, background: C.amberBrand, display: "inline-block", borderRadius: 2 }} /> Selected</span>
+        <div className="flex items-center gap-4 px-4 pb-4 pt-1 text-[11px]" style={{ color: C.inkSoft }}>
+          <span className="flex items-center gap-1.5"><span style={{ width: 10, height: 10, background: C.teal, display: "inline-block", borderRadius: 3 }} /> Active intervention</span>
+          <span className="flex items-center gap-1.5"><span style={{ width: 10, height: 10, background: C.amberBrand, display: "inline-block", borderRadius: 3 }} /> Selected</span>
+          <span className="ml-auto font-medium" style={{ color: C.muted }}>{countriesWithProjects.size} countries with active work</span>
         </div>
       </div>
 
-      <div className="rounded-lg p-4" style={{ background: C.paperRaised, border: `1px solid ${C.lineSoft}` }}>
+      <div className="rounded-xl p-4" style={{ background: C.paperRaised, border: `1px solid ${C.lineSoft}` }}>
         {!selected ? (
           <div className="text-sm text-center py-8" style={{ color: C.muted }}>
             <Globe2 size={22} className="mx-auto mb-2" color={C.muted} />
@@ -1413,9 +1732,18 @@ function MapCanvas({ geo, countriesWithProjects, selected, setSelected, hovered,
               <div className="space-y-2 mb-4">
                 {selectedProjects.map((p) => (
                   <div key={p.project_id} className="text-xs px-2.5 py-2 rounded-md" style={{ background: C.tealTint }}>
-                    <div className="font-semibold" style={{ color: C.tealDeep }}>{p.project_name}</div>
+                    <div className="flex items-center justify-between">
+                      <div className="font-semibold" style={{ color: C.tealDeep }}>{p.project_name}</div>
+                      {identity?.isAdmin && (
+                        <button onClick={() => onEditProject(p)} className="text-[10px] underline" style={{ color: C.tealDeep }}>Edit</button>
+                      )}
+                    </div>
                     <div style={{ color: C.inkSoft }}>Donor: {p.donor || "—"}</div>
                     <div style={{ color: C.inkSoft }}>Partners: {p.partners || "—"}</div>
+                    <div className="flex items-center gap-1.5 mt-1">
+                      {p.duration && <Pill color={C.tealDeep} bg="#fff">{p.duration}</Pill>}
+                      {p.phase && <Pill color={C.amberBrand} bg="#FFF6E6">{p.phase}</Pill>}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -2046,6 +2374,22 @@ export default function App() {
     await setActivityMeta({ activityRow: row, countries, updatedBy: identity?.name, updatedByEmail: identity?.email });
   }, [identity]);
 
+  const handleSaveProject = useCallback(async (payload) => {
+    if (!identity?.isAdmin) return;
+    setProjects((prev) => {
+      const idx = prev.findIndex((p) => p.project_id === payload.project_id);
+      if (idx === -1) return [...prev, payload];
+      const next = [...prev];
+      next[idx] = payload;
+      return next;
+    });
+    await setProject({
+      projectId: payload.project_id, projectName: payload.project_name, countries: payload.countries,
+      donor: payload.donor, partners: payload.partners, duration: payload.duration, phase: payload.phase,
+      updatedBy: identity.name, updatedByEmail: identity.email,
+    });
+  }, [identity]);
+
   if (loadingIdentity || !ready) {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: C.paper }}>
@@ -2102,7 +2446,14 @@ export default function App() {
           })}
         </nav>
         <div className="pt-4 mt-4" style={{ borderTop: "1px solid rgba(255,255,255,0.25)" }}>
-          <div className="text-sm font-semibold">{identity.name}</div>
+          <div className="flex items-center gap-1.5">
+            <div className="text-sm font-semibold">{identity.name}</div>
+            {identity.isAdmin && (
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: C.amberBrand, color: "#4A3200" }}>
+                ADMIN
+              </span>
+            )}
+          </div>
           <div className="text-xs mb-3" style={{ color: "#CDEAF0" }}>{identity.team}</div>
           <button
             onClick={() => { setIdentity(null); rememberEmail(""); }}
@@ -2117,7 +2468,12 @@ export default function App() {
 
       {/* mobile top bar */}
       <div className="md:hidden fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-4 py-3" style={{ background: C.teal }}>
-        <span className="text-sm font-semibold text-white">{identity.name} · {identity.team}</span>
+        <span className="text-sm font-semibold text-white flex items-center gap-1.5">
+          {identity.name} · {identity.team}
+          {identity.isAdmin && (
+            <span className="text-[9px] font-bold px-1 py-0.5 rounded" style={{ background: C.amberBrand, color: "#4A3200" }}>ADMIN</span>
+          )}
+        </span>
         <button
           onClick={() => { setIdentity(null); rememberEmail(""); }}
           className="flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold"
@@ -2170,7 +2526,7 @@ export default function App() {
             onSetCountries={handleSetActivityCountries}
           />
         )}
-        {view === "all" && <AllActivitiesView updates={updates} projects={projects} activityMeta={activityMeta} />}
+        {view === "all" && <AllActivitiesView updates={updates} projects={projects} activityMeta={activityMeta} identity={identity} onSaveProject={handleSaveProject} onSetTypeSmg={handleSetActivityTypeSmg} />}
         {view === "targets" && (
           <TargetsView identity={identity} />
         )}
