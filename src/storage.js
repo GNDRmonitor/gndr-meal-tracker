@@ -101,6 +101,58 @@ export async function setIndicatorStatus({
   }
 }
 
+/* ---------- Activity Meta: Type (Q/N) and S·M·G — admin-only edits ---------- */
+
+export async function getAllActivityMeta() {
+  try {
+    const data = await callAppsScript({ action: "activity_meta_get_all" });
+    return data?.rows || [];
+  } catch (e) {
+    console.error("getAllActivityMeta failed", e);
+    return [];
+  }
+}
+
+export async function setActivityMeta({ activityRow, type, smg, countries, updatedBy, updatedByEmail }) {
+  try {
+    const payload = { action: "activity_meta_set", activity_row: activityRow, updated_by: updatedBy, updated_by_email: updatedByEmail };
+    if (type !== undefined) payload.type = type;
+    if (smg !== undefined) payload.smg = smg;
+    if (countries !== undefined) payload.countries = countries;
+    await callAppsScript(payload);
+    return true;
+  } catch (e) {
+    console.error("setActivityMeta failed", e);
+    return false;
+  }
+}
+
+/* ---------- Projects: pilot map data — admin-only edits ---------- */
+
+export async function getAllProjects() {
+  try {
+    const data = await callAppsScript({ action: "projects_get_all" });
+    return data?.rows || [];
+  } catch (e) {
+    console.error("getAllProjects failed", e);
+    return [];
+  }
+}
+
+export async function setProject({ projectId, projectName, countries, donor, partners, updatedBy, updatedByEmail }) {
+  try {
+    await callAppsScript({
+      action: "projects_set",
+      project_id: projectId, project_name: projectName, countries, donor, partners,
+      updated_by: updatedBy, updated_by_email: updatedByEmail,
+    });
+    return true;
+  } catch (e) {
+    console.error("setProject failed", e);
+    return false;
+  }
+}
+
 /* ---------- Remembering who's signed in, between visits ---------- */
 
 const LAST_EMAIL_KEY = "gndr-meal-last-email";
