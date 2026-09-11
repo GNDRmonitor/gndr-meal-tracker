@@ -1662,7 +1662,7 @@ function WorldMap({ projects, activities, activityMeta, identity, onSaveProject 
 // runs once geo data is actually available.
 function MapCanvas({ geo, countriesWithProjects, selected, setSelected, hovered, setHovered, projectsForCountry, activitiesForCountry, identity, onEditProject }) {
   const width = 960, height = 460;
-  const projection = d3.geoNaturalEarth1().fitSize([width, height], geo);
+  const projection = d3.geoEquirectangular().fitSize([width, height], geo);
   const pathGen = d3.geoPath(projection);
 
   const selectedProjects = selected ? projectsForCountry(selected) : [];
