@@ -131,6 +131,13 @@ const SI_DASHBOARD = [
 {si:"3.2",goal:"Goal 3",title:"SI 3.2 — Ensuring a resilient and sustainable network",indicators:[{letter:"a",text:"# and breakdown of sources of funding for GNDR",question:"One row per funding source.",fields:[{key:"source",label:"Funding source name"},{key:"amount",label:"Amount (if known)"}],coverage:[{output:"3.2.1",rating:"yes"},{output:"3.2.2",rating:"no"},{output:"3.2.3",rating:"indirectly"},{output:"3.2.4",rating:"indirectly"}]},{letter:"b",text:"# of members who gained opportunities through the network",question:"One row per member.",fields:[{key:"member",label:"Member name"},{key:"opportunity",label:"Opportunity gained"}],coverage:[{output:"3.2.1",rating:"no"},{output:"3.2.2",rating:"yes"},{output:"3.2.3",rating:"no"},{output:"3.2.4",rating:"no"}]},{letter:"c",text:"# members financially sustainable and with diversified resourcing",question:"One row per member.",fields:[{key:"member",label:"Member name"},{key:"resourcing",label:"Diversified resourcing"}],coverage:[{output:"3.2.1",rating:"likely"},{output:"3.2.2",rating:"no"},{output:"3.2.3",rating:"no"},{output:"3.2.4",rating:"no"}]}]}
 ];
 
+// Quick lookup so any activity can show what its Output is called and what
+// it's working toward this year, without a full OUTPUTS scan every render.
+function getOutputInfo(outputStr) {
+  const id = (outputStr || "").replace("Output ", "");
+  return OUTPUTS.find((o) => o.id === id) || null;
+}
+
 /* ============================== TOKENS ============================== */
 
 const C = {
@@ -621,6 +628,7 @@ function ActivityRow({ activity, updates, onOpenQuarter, expanded, onToggle, ide
     statuses[q] = updates?.[q]?.confidence ?? null;
   });
   const contributors = splitList(activity.contrib);
+  const outputInfo = getOutputInfo(activity.output);
 
   return (
     <div style={{ borderBottom: `1px solid ${C.lineSoft}` }}>
@@ -639,7 +647,7 @@ function ActivityRow({ activity, updates, onOpenQuarter, expanded, onToggle, ide
           </div>
           <div className="flex items-center flex-wrap gap-2 mt-1.5">
             <span className="text-xs" style={{ color: C.muted }}>
-              {activity.output}
+              {activity.output}{outputInfo ? ` — ${outputInfo.short}` : ""}
             </span>
             {contributors.length > 0 && (
               <span className="text-xs" style={{ color: C.muted }}>
@@ -654,6 +662,14 @@ function ActivityRow({ activity, updates, onOpenQuarter, expanded, onToggle, ide
 
       {expanded && (
         <div className="pb-4 pl-7">
+          {outputInfo?.y1 && (
+            <div
+              className="text-xs leading-relaxed mb-3 px-3 py-2 rounded-md"
+              style={{ background: C.tealTint, color: C.tealDeep }}
+            >
+              <span className="font-semibold">This contributes to — 2026-27 target: </span>{outputInfo.y1}
+            </div>
+          )}
           <div className="mb-2.5">
             <CountryPicker activity={activity} meta={meta} onSetCountries={onSetCountries} />
           </div>
@@ -911,6 +927,7 @@ function ActivityDetailModal({ activity, updates, meta, onClose }) {
   const effType = meta?.type || activity.type || "—";
   const effSmg = meta?.smg || activity.smg || "—";
   const countries = splitList(meta?.countries);
+  const outputInfo = getOutputInfo(activity.output);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.4)" }} onClick={onClose}>
@@ -921,8 +938,18 @@ function ActivityDetailModal({ activity, updates, meta, onClose }) {
       >
         <div className="px-5 py-4 flex items-start justify-between" style={{ borderBottom: `1px solid ${C.lineSoft}` }}>
           <div>
-            <div className="text-xs font-semibold mb-1" style={{ color: C.tealDeep }}>{activity.output} · {activity.si}</div>
+            <div className="text-xs font-semibold mb-1" style={{ color: C.tealDeep }}>
+              {activity.output}{outputInfo ? ` — ${outputInfo.short}` : ""} · {activity.si}
+            </div>
             <div className="text-base font-bold" style={{ color: C.ink }}>{activity.activity}</div>
+            {outputInfo?.y1 && (
+              <div
+                className="text-xs leading-relaxed mt-2 px-3 py-2 rounded-md"
+                style={{ background: C.tealTint, color: C.tealDeep }}
+              >
+                <span className="font-semibold">2026-27 target — </span>{outputInfo.y1}
+              </div>
+            )}
           </div>
           <button onClick={onClose}><X size={18} color={C.muted} /></button>
         </div>
