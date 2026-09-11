@@ -1671,19 +1671,10 @@ function MapCanvas({ geo, countriesWithProjects, selected, setSelected, hovered,
   return (
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
       <div
-        className="md:col-span-2 rounded-xl overflow-hidden relative"
-        style={{ background: "linear-gradient(180deg, #F0F6F8 0%, #E3EEF1 100%)", border: `1px solid ${C.lineSoft}`, boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}
+        className="md:col-span-2 overflow-hidden relative"
+        style={{ background: "#FFFFFF", border: `1px solid ${C.lineSoft}` }}
       >
-        <div className="flex items-center gap-2 px-4 pt-4">
-          <div
-            className="w-6 h-6 rounded-full flex items-center justify-center shrink-0"
-            style={{ border: `2.5px solid ${C.amberBrand}` }}
-          >
-            <span className="text-[7px] font-extrabold" style={{ color: C.tealDeep }}>GNDR</span>
-          </div>
-          <div className="text-xs font-bold tracking-wide" style={{ color: C.tealDeep }}>WHERE WE WORK</div>
-        </div>
-        <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto px-2">
+        <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto p-4">
           {geo.features.map((f, i) => {
             const name = normCountry(f.properties?.name);
             const hasProject = countriesWithProjects.has(name);
@@ -1693,8 +1684,8 @@ function MapCanvas({ geo, countriesWithProjects, selected, setSelected, hovered,
               <path
                 key={i}
                 d={pathGen(f)}
-                fill={isSelected ? C.amberBrand : hasProject ? C.teal : "#D3E1E5"}
-                stroke="#F7FAFB"
+                fill={isSelected ? C.amberBrand : hasProject ? C.teal : "#E7ECEE"}
+                stroke="#FFFFFF"
                 strokeWidth={isSelected || isHovered ? 1.3 : 0.6}
                 opacity={isHovered && !isSelected ? 0.85 : 1}
                 style={{ cursor: hasProject ? "pointer" : "default", transition: "fill 0.15s" }}
