@@ -559,7 +559,7 @@ function UpdateDrawer({ activity, quarter, existing, onClose, onSave, identity, 
               <SectionLabel>Contributor comments</SectionLabel>
               <div className="space-y-2.5 mt-2">
                 {contributors.map((c) => {
-                  const isMe = !isOwnerMode && c === identity.team;
+                  const isMe = !isOwnerMode && (c === identity.team || c.includes(identity.team) || identity.team.includes(c));
                   const savedComment = existing?.contributorComments?.[c];
                   return (
                     <div key={c}>
