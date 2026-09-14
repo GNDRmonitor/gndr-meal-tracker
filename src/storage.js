@@ -55,14 +55,15 @@ export async function getAllActivityUpdates() {
 }
 
 export async function setActivityUpdate({
-  activityRow, quarter, plan, whatHappened, adaptation, confidence,
+  activityRow, quarter, plan, whatHappened, adaptation, confidence, contributorComments,
   updatedBy, updatedByEmail,
 }) {
   try {
     await callAppsScript({
       action: "activity_set",
       activity_row: activityRow, quarter, plan, what_happened: whatHappened,
-      adaptation, confidence, updated_by: updatedBy, updated_by_email: updatedByEmail,
+      adaptation, confidence, contributor_comments: JSON.stringify(contributorComments || {}),
+      updated_by: updatedBy, updated_by_email: updatedByEmail,
     });
     return true;
   } catch (e) {
