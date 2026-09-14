@@ -110,7 +110,19 @@ const OUTPUTS = [
   {id:"3.2.4",goal:"Goal 3",si:"SI 3.2 — Ensuring a resilient and sustainable network",short:"Institutional systems strengthened",y1:"Clean audit and statutory accounts delivered on time; policies and Risk Register updated; staffing gaps filled within 3 months; Staff Wellbeing & Workload survey conducted; Speak Up channel and safeguarding/manager training in place.",y24:"Outcome milestone: Clean annual audits and statutory compliance maintained; key institutional policies and risk systems reviewed annually; staff wellbeing, safeguarding and operational capacity monitored and improved."},
 ];
 
-const TEAMS = ["Programmes","Policy","FRIMCO","Membership Engagement","Operations","ED","Risk Drivers Lead","Regional Lead (Americas & Caribbean)","Regional Lead (Asia & Europe)","Regional Lead (Africa & West Asia)","Regional Leads"];
+const TEAMS = ["Programmes","Policy","FRIMCO","Membership Engagement","Operations","ED","Risk Drivers Lead","Regional Lead"];
+
+// A Regional Lead signs in once, and sees all regional activities grouped by
+// area — instead of having to pick one specific region at login. This maps
+// each activity's raw owner string to the region heading it should sit
+// under; anything that isn't one of the three named regions falls under
+// "General" (the plain "Regional Leads" owner, with no area attached).
+function getRegionLabel(owner) {
+  if (owner.includes("Americas & Caribbean")) return "Americas & Caribbean";
+  if (owner.includes("Asia & Europe")) return "Asia & Europe";
+  if (owner.includes("Africa & West Asia")) return "Africa & West Asia";
+  return "General";
+}
 
 // Admins can edit the Indicator dashboard and each activity's Type (Q/N) and
 // S·M·G fields. Everyone else ("Editor") can only edit their own team's
@@ -342,22 +354,39 @@ function IdentityPicker({ onSelect, loading }) {
 
 /* ============================== UPDATE FORM (drawer) ============================== */
 
-function UpdateDrawer({ activity, quarter, existing, onClose, onSave, identity }) {
+function UpdateDrawer({ activity, quarter, existing, onClose, onSave, identity, mode }) {
+  // mode: "owner" (full edit rights over Plan/What happened/Adaptation/
+  // Confidence) or "contributor" (read-only on the owner's fields, can only
+  // add/edit their own line in Contributor comments).
+  const isOwnerMode = mode !== "contributor";
   const [plan, setPlan] = useState(existing?.plan || "");
   const [whatHappened, setWhatHappened] = useState(existing?.whatHappened || "");
   const [adaptation, setAdaptation] = useState(existing?.adaptation || "");
   const [confidence, setConfidence] = useState(existing?.confidence ?? 6);
   const [saving, setSaving] = useState(false);
 
+  const contributors = splitList(activity.contrib);
+  const [myComment, setMyComment] = useState(existing?.contributorComments?.[identity.team] || "");
+
   const info = confidenceInfo(confidence);
 
   const handleSave = async () => {
     setSaving(true);
-    await onSave({
-      plan, whatHappened, adaptation, confidence,
-      updatedBy: identity.name, updatedTeam: identity.team,
-      updatedAt: new Date().toISOString(),
-    });
+    if (isOwnerMode) {
+      await onSave({
+        plan, whatHappened, adaptation, confidence,
+        contributorComments: existing?.contributorComments || {},
+        updatedBy: identity.name, updatedTeam: identity.team,
+        updatedAt: new Date().toISOString(),
+      });
+    } else {
+      // Contributors only ever touch their own comment slot — everything
+      // else about the quarter's report stays exactly as the owner left it.
+      await onSave({
+        ...(existing || { plan: "", whatHappened: "", adaptation: "", confidence: null }),
+        contributorComments: { ...(existing?.contributorComments || {}), [identity.team]: myComment },
+      });
+    }
     setSaving(false);
     onClose();
   };
@@ -375,6 +404,7 @@ function UpdateDrawer({ activity, quarter, existing, onClose, onSave, identity }
           <div>
             <div className="text-xs font-semibold mb-1" style={{ color: C.teal }}>
               {activity.output} · {quarter} 2026-27
+              {!isOwnerMode && <span className="ml-2" style={{ color: C.amberBrand }}>· Contributor view</span>}
             </div>
             <div className="text-base font-medium leading-snug" style={{ color: C.ink }}>
               {activity.activity}
@@ -422,46 +452,74 @@ function UpdateDrawer({ activity, quarter, existing, onClose, onSave, identity }
             );
           })()}
 
+          {!isOwnerMode && (
+            <div
+              className="text-xs leading-relaxed px-3.5 py-2.5 rounded-lg flex items-start gap-2"
+              style={{ background: "#FFF6E6", color: "#8A5A00" }}
+            >
+              <Lock size={13} className="shrink-0 mt-0.5" />
+              <span>Only {activity.owner} (the owner) can edit the report below. You can add your own comment as a contributor further down.</span>
+            </div>
+          )}
+
           <div>
             <label className="block text-sm font-medium mb-1.5" style={{ color: C.ink }}>
               Plan — what's planned or delivered this quarter
             </label>
-            <textarea
-              value={plan}
-              onChange={(e) => setPlan(e.target.value)}
-              rows={3}
-              placeholder="The quarter, and what is planned or delivered in it."
-              className="w-full px-3 py-2 rounded-md text-sm outline-none resize-none"
-              style={{ border: `1.5px solid ${C.line}`, background: C.paperRaised, color: C.ink }}
-            />
+            {isOwnerMode ? (
+              <textarea
+                value={plan}
+                onChange={(e) => setPlan(e.target.value)}
+                rows={3}
+                placeholder="The quarter, and what is planned or delivered in it."
+                className="w-full px-3 py-2 rounded-md text-sm outline-none resize-none"
+                style={{ border: `1.5px solid ${C.line}`, background: C.paperRaised, color: C.ink }}
+              />
+            ) : (
+              <p className="text-sm px-3 py-2 rounded-md" style={{ background: C.lineSoft, color: plan ? C.ink : C.muted }}>
+                {plan || "Not yet filled in by the owner."}
+              </p>
+            )}
           </div>
 
           <div>
             <label className="block text-sm font-medium mb-1.5" style={{ color: C.ink }}>
               What happened & key observations
             </label>
-            <textarea
-              value={whatHappened}
-              onChange={(e) => setWhatHappened(e.target.value)}
-              rows={3}
-              placeholder="Narrative — filled at quarter-end."
-              className="w-full px-3 py-2 rounded-md text-sm outline-none resize-none"
-              style={{ border: `1.5px solid ${C.line}`, background: C.paperRaised, color: C.ink }}
-            />
+            {isOwnerMode ? (
+              <textarea
+                value={whatHappened}
+                onChange={(e) => setWhatHappened(e.target.value)}
+                rows={3}
+                placeholder="Narrative — filled at quarter-end."
+                className="w-full px-3 py-2 rounded-md text-sm outline-none resize-none"
+                style={{ border: `1.5px solid ${C.line}`, background: C.paperRaised, color: C.ink }}
+              />
+            ) : (
+              <p className="text-sm px-3 py-2 rounded-md" style={{ background: C.lineSoft, color: whatHappened ? C.ink : C.muted }}>
+                {whatHappened || "Not yet filled in by the owner."}
+              </p>
+            )}
           </div>
 
           <div>
             <label className="block text-sm font-medium mb-1.5" style={{ color: C.ink }}>
               Adaptation / next change
             </label>
-            <textarea
-              value={adaptation}
-              onChange={(e) => setAdaptation(e.target.value)}
-              rows={2}
-              placeholder="Narrative — filled at quarter-end."
-              className="w-full px-3 py-2 rounded-md text-sm outline-none resize-none"
-              style={{ border: `1.5px solid ${C.line}`, background: C.paperRaised, color: C.ink }}
-            />
+            {isOwnerMode ? (
+              <textarea
+                value={adaptation}
+                onChange={(e) => setAdaptation(e.target.value)}
+                rows={2}
+                placeholder="Narrative — filled at quarter-end."
+                className="w-full px-3 py-2 rounded-md text-sm outline-none resize-none"
+                style={{ border: `1.5px solid ${C.line}`, background: C.paperRaised, color: C.ink }}
+              />
+            ) : (
+              <p className="text-sm px-3 py-2 rounded-md" style={{ background: C.lineSoft, color: adaptation ? C.ink : C.muted }}>
+                {adaptation || "Not yet filled in by the owner."}
+              </p>
+            )}
           </div>
 
           <div>
@@ -473,20 +531,59 @@ function UpdateDrawer({ activity, quarter, existing, onClose, onSave, identity }
                 {confidence}/10 · {info.label}
               </Pill>
             </div>
-            <input
-              type="range"
-              min={1}
-              max={10}
-              value={confidence}
-              onChange={(e) => setConfidence(Number(e.target.value))}
-              className="w-full"
-              style={{ accentColor: info.color }}
-            />
-            <div className="flex justify-between text-xs mt-1" style={{ color: C.muted }}>
-              <span>1 · Off track</span>
-              <span>10 · Certain</span>
-            </div>
+            {isOwnerMode ? (
+              <>
+                <input
+                  type="range"
+                  min={1}
+                  max={10}
+                  value={confidence}
+                  onChange={(e) => setConfidence(Number(e.target.value))}
+                  className="w-full"
+                  style={{ accentColor: info.color }}
+                />
+                <div className="flex justify-between text-xs mt-1" style={{ color: C.muted }}>
+                  <span>1 · Off track</span>
+                  <span>10 · Certain</span>
+                </div>
+              </>
+            ) : (
+              <div className="h-1.5 rounded-full" style={{ background: C.lineSoft }}>
+                <div className="h-1.5 rounded-full" style={{ width: `${confidence * 10}%`, background: info.color }} />
+              </div>
+            )}
           </div>
+
+          {contributors.length > 0 && (
+            <div>
+              <SectionLabel>Contributor comments</SectionLabel>
+              <div className="space-y-2.5 mt-2">
+                {contributors.map((c) => {
+                  const isMe = !isOwnerMode && c === identity.team;
+                  const savedComment = existing?.contributorComments?.[c];
+                  return (
+                    <div key={c}>
+                      <label className="block text-xs font-semibold mb-1" style={{ color: C.inkSoft }}>{c}</label>
+                      {isMe ? (
+                        <textarea
+                          value={myComment}
+                          onChange={(e) => setMyComment(e.target.value)}
+                          rows={2}
+                          placeholder={`Your comment as a contributor (${c})`}
+                          className="w-full px-3 py-2 rounded-md text-sm outline-none resize-none"
+                          style={{ border: `1.5px solid ${C.teal}`, background: "#fff", color: C.ink }}
+                        />
+                      ) : (
+                        <p className="text-xs px-3 py-2 rounded-md" style={{ background: C.paper, border: `1px solid ${C.lineSoft}`, color: savedComment ? C.inkSoft : C.muted }}>
+                          {savedComment || "No comment yet."}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           <button
             onClick={handleSave}
@@ -494,7 +591,7 @@ function UpdateDrawer({ activity, quarter, existing, onClose, onSave, identity }
             className="w-full mt-2 px-4 py-2.5 rounded-md text-sm font-semibold"
             style={{ background: C.teal, color: "#fff", opacity: saving ? 0.5 : 1 }}
           >
-            {saving ? "Saving…" : `Save ${quarter} update`}
+            {saving ? "Saving…" : isOwnerMode ? `Save ${quarter} update` : "Save my comment"}
           </button>
           {existing?.updatedBy && (
             <p className="text-xs" style={{ color: C.muted }}>
@@ -622,7 +719,7 @@ function CountryPicker({ activity, meta, onSetCountries }) {
   );
 }
 
-function ActivityRow({ activity, updates, onOpenQuarter, expanded, onToggle, identity, meta, onSetTypeSmg, onSetCountries }) {
+function ActivityRow({ activity, updates, onOpenQuarter, expanded, onToggle, identity, meta, onSetTypeSmg, onSetCountries, mode = "owner" }) {
   const statuses = {};
   QUARTERS.forEach((q) => {
     statuses[q] = updates?.[q]?.confidence ?? null;
@@ -685,7 +782,7 @@ function ActivityRow({ activity, updates, onOpenQuarter, expanded, onToggle, ide
                   style={{ border: `1.5px solid ${v != null ? info.color : C.line}`, color: v != null ? info.color : C.inkSoft }}
                 >
                   {v != null ? <CheckCircle2 size={13} /> : <Circle size={13} />}
-                  {q} {v != null ? `· ${v}/10` : "· log update"}
+                  {q} {v != null ? `· ${v}/10` : mode === "contributor" ? "· add comment" : "· log update"}
                 </button>
               );
             })}
@@ -700,30 +797,54 @@ function ActivityRow({ activity, updates, onOpenQuarter, expanded, onToggle, ide
 
 function MyActivitiesView({ identity, updates, onSaveUpdate, activityMeta, onSetTypeSmg, onSetCountries }) {
 
+  const [tab, setTab] = useState("owner"); // owner | contributor
   const [expandedRow, setExpandedRow] = useState(null);
-  const [drawer, setDrawer] = useState(null); // {activity, quarter}
+  const [drawer, setDrawer] = useState(null); // {activity, quarter, mode}
+
+  const isRegional = identity.team === "Regional Lead";
 
   const mine = useMemo(
     () => ACTIVITIES.filter((a) => a.owner.includes(identity.team)),
     [identity.team]
   );
+  const contributing = useMemo(
+    () => ACTIVITIES.filter((a) => splitList(a.contrib).some((c) => c === identity.team || c.includes(identity.team))),
+    [identity.team]
+  );
 
-  const grouped = useMemo(() => {
-    const g = {};
-    mine.forEach((a) => {
-      g[a.output] = g[a.output] || [];
-      g[a.output].push(a);
+  const list = tab === "owner" ? mine : contributing;
+
+  // Regional Leads see their activities grouped by geographic area first
+  // (then by Output within each area); everyone else is grouped by Output
+  // only, same as before.
+  const sections = useMemo(() => {
+    if (isRegional) {
+      const regions = {};
+      list.forEach((a) => {
+        const region = getRegionLabel(a.owner);
+        regions[region] = regions[region] || {};
+        regions[region][a.output] = regions[region][a.output] || [];
+        regions[region][a.output].push(a);
+      });
+      const order = ["Americas & Caribbean", "Asia & Europe", "Africa & West Asia", "General"];
+      return order.filter((r) => regions[r]).map((r) => ({ region: r, outputs: regions[r] }));
+    }
+    const outputs = {};
+    list.forEach((a) => {
+      outputs[a.output] = outputs[a.output] || [];
+      outputs[a.output].push(a);
     });
-    return g;
-  }, [mine]);
+    return [{ region: null, outputs }];
+  }, [list, isRegional]);
 
-  if (mine.length === 0) {
+  if (mine.length === 0 && contributing.length === 0) {
     return (
       <div className="max-w-2xl">
         <p className="text-sm" style={{ color: C.inkSoft }}>
-          No activities are currently owned by <strong>{identity.team}</strong> in
-          the work plan. If that's not right, flag it in the Owners tab — you can
-          still browse everything under "All activities."
+          <strong>{identity.team}</strong> isn't currently listed as owner or
+          contributor on any activity in the work plan. If that's not right,
+          flag it in the Owners tab — you can still browse everything under
+          "Activity Tracker."
         </p>
       </div>
     );
@@ -731,47 +852,89 @@ function MyActivitiesView({ identity, updates, onSaveUpdate, activityMeta, onSet
 
   return (
     <div className="max-w-3xl">
-      <SectionLabel>
-        {mine.length} {mine.length === 1 ? "activity" : "activities"} owned by {identity.team}
-      </SectionLabel>
-      {Object.entries(grouped).map(([output, acts]) => {
-        return (
-        <div key={output} className="mb-6">
-          <div className="flex items-center flex-wrap gap-2 mb-2">
-            <div
-              className="text-sm font-semibold px-3 py-1.5 rounded-md inline-block"
-              style={{ background: C.tealTint, color: C.tealDeep }}
-            >
-              {output}
-            </div>
-          </div>
-          <div
-            className="rounded-lg mt-2 px-3"
-            style={{ background: C.paperRaised, border: `1px solid ${C.lineSoft}` }}
+      <div className="flex gap-2 mb-5">
+        {[
+          { id: "owner", label: `Owner (${mine.length})` },
+          { id: "contributor", label: `Contributor (${contributing.length})` },
+        ].map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            className="px-3.5 py-1.5 rounded-md text-sm font-medium"
+            style={{
+              background: tab === t.id ? C.teal : C.paperRaised,
+              color: tab === t.id ? "#fff" : C.inkSoft,
+              border: `1.5px solid ${tab === t.id ? C.teal : C.line}`,
+            }}
           >
-            {acts.map((a) => (
-              <ActivityRow
-                key={a.row}
-                activity={a}
-                updates={updates[a.row]}
-                expanded={expandedRow === a.row}
-                onToggle={() => setExpandedRow(expandedRow === a.row ? null : a.row)}
-                onOpenQuarter={(q) => setDrawer({ activity: a, quarter: q })}
-                identity={identity}
-                meta={activityMeta[a.row]}
-                onSetTypeSmg={onSetTypeSmg}
-                onSetCountries={onSetCountries}
-              />
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "contributor" && (
+        <div
+          className="text-xs leading-relaxed px-3.5 py-2.5 rounded-lg mb-4 flex items-start gap-2"
+          style={{ background: "#FFF6E6", color: "#8A5A00" }}
+        >
+          <Lock size={13} className="shrink-0 mt-0.5" />
+          <span>You can view these reports and leave your own comment as a contributor. Only the owner can edit the full report.</span>
+        </div>
+      )}
+
+      {list.length === 0 ? (
+        <p className="text-sm" style={{ color: C.muted }}>
+          {identity.team} isn't listed as a {tab} on any activity yet.
+        </p>
+      ) : (
+        sections.map((section) => (
+          <div key={section.region || "flat"} className="mb-8">
+            {section.region && (
+              <div className="text-sm font-bold mb-3" style={{ color: C.tealDeep }}>
+                {section.region}
+              </div>
+            )}
+            {Object.entries(section.outputs).map(([output, acts]) => (
+              <div key={output} className="mb-6">
+                <div className="flex items-center flex-wrap gap-2 mb-2">
+                  <div
+                    className="text-sm font-semibold px-3 py-1.5 rounded-md inline-block"
+                    style={{ background: C.tealTint, color: C.tealDeep }}
+                  >
+                    {output}
+                  </div>
+                </div>
+                <div
+                  className="rounded-lg mt-2 px-3"
+                  style={{ background: C.paperRaised, border: `1px solid ${C.lineSoft}` }}
+                >
+                  {acts.map((a) => (
+                    <ActivityRow
+                      key={a.row}
+                      activity={a}
+                      updates={updates[a.row]}
+                      expanded={expandedRow === a.row}
+                      onToggle={() => setExpandedRow(expandedRow === a.row ? null : a.row)}
+                      onOpenQuarter={(q) => setDrawer({ activity: a, quarter: q, mode: tab })}
+                      identity={identity}
+                      meta={activityMeta[a.row]}
+                      onSetTypeSmg={onSetTypeSmg}
+                      onSetCountries={onSetCountries}
+                      mode={tab}
+                    />
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
-        </div>
-        );
-      })}
+        ))
+      )}
 
       {drawer && (
         <UpdateDrawer
           activity={drawer.activity}
           quarter={drawer.quarter}
+          mode={drawer.mode}
           existing={updates[drawer.activity.row]?.[drawer.quarter]}
           identity={identity}
           onClose={() => setDrawer(null)}
@@ -1005,7 +1168,15 @@ function ActivityDetailModal({ activity, updates, meta, onClose }) {
                     </div>
                     {u?.plan && <div className="text-xs mb-1" style={{ color: C.inkSoft }}><span className="font-semibold">Plan: </span>{u.plan}</div>}
                     {u?.whatHappened && <div className="text-xs mb-1" style={{ color: C.inkSoft }}><span className="font-semibold">What happened: </span>{u.whatHappened}</div>}
-                    {u?.adaptation && <div className="text-xs" style={{ color: C.inkSoft }}><span className="font-semibold">Adaptation: </span>{u.adaptation}</div>}
+                    {u?.adaptation && <div className="text-xs mb-1" style={{ color: C.inkSoft }}><span className="font-semibold">Adaptation: </span>{u.adaptation}</div>}
+                    {u?.contributorComments && Object.entries(u.contributorComments).filter(([, v]) => v).length > 0 && (
+                      <div className="text-xs mt-1.5 pt-1.5" style={{ borderTop: `1px solid ${C.lineSoft}` }}>
+                        <span className="font-semibold" style={{ color: C.muted }}>Contributor comments:</span>
+                        {Object.entries(u.contributorComments).filter(([, v]) => v).map(([name, comment]) => (
+                          <div key={name} style={{ color: C.inkSoft }}><span className="font-medium">{name}: </span>{comment}</div>
+                        ))}
+                      </div>
+                    )}
                     {!u && <div className="text-xs" style={{ color: C.muted }}>Not yet reported.</div>}
                   </div>
                 );
@@ -2310,10 +2481,13 @@ export default function App() {
       const u = {};
       activityRows.forEach((r) => {
         if (!r.activity_row || !r.quarter) return;
+        let contributorComments = {};
+        try { contributorComments = r.contributor_comments ? JSON.parse(r.contributor_comments) : {}; } catch (e) {}
         u[r.activity_row] = u[r.activity_row] || {};
         u[r.activity_row][r.quarter] = {
           plan: r.plan, whatHappened: r.what_happened, adaptation: r.adaptation,
           confidence: r.confidence === "" ? null : Number(r.confidence),
+          contributorComments,
           updatedBy: r.updated_by, updatedTeam: "", updatedAt: r.updated_at,
         };
       });
@@ -2375,7 +2549,8 @@ export default function App() {
     await setActivityUpdate({
       activityRow: row, quarter,
       plan: payload.plan, whatHappened: payload.whatHappened, adaptation: payload.adaptation,
-      confidence: payload.confidence, updatedBy: payload.updatedBy, updatedByEmail: identity?.email,
+      confidence: payload.confidence, contributorComments: payload.contributorComments,
+      updatedBy: payload.updatedBy, updatedByEmail: identity?.email,
     });
   }, [identity]);
 
