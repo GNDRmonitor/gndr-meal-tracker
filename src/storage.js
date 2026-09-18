@@ -63,13 +63,14 @@ export async function getAllActivityUpdates() {
 
 export async function setActivityUpdate({
   activityRow, quarter, plan, whatHappened, adaptation, confidence, contributorComments,
-  updatedBy, updatedByEmail,
+  activityName, output, updatedBy, updatedByEmail,
 }) {
   try {
     await callAppsScript({
       action: "activity_set",
       activity_row: activityRow, quarter, plan, what_happened: whatHappened,
       adaptation, confidence, contributor_comments: JSON.stringify(contributorComments || {}),
+      activity_name: activityName, output,
       updated_by: updatedBy, updated_by_email: updatedByEmail,
     });
     return true;
