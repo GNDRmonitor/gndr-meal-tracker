@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { ChevronRight, ChevronDown, Circle, CheckCircle2, AlertTriangle, Radio, Target, ClipboardList, LayoutGrid, X, Loader2, Gauge, Download, Repeat, Lock, MapPin, Globe2, Pencil } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell, LabelList } from "recharts";
 import * as d3 from "d3";
@@ -1866,8 +1866,87 @@ function WorldMap({ projects, activities, activityMeta, identity, onSaveProject 
 // runs once geo data is actually available.
 function MapCanvas({ geo, countriesWithProjects, selected, setSelected, hovered, setHovered, projectsForCountry, activitiesForCountry, identity, onEditProject }) {
   const width = 1100, height = 560;
-  const projection = d3.geoEquirectangular().fitSize([width, height], geo);
-  const pathGen = d3.geoPath(projection);
+  const canvasRef = useRef(null);
+  const hitCanvasRef = useRef(null); // offscreen, one unique flat colour per country
+  const projection = useMemo(() => d3.geoEquirectangular().fitSize([width, height], geo), [geo]);
+
+  // Hit-testing by colour index: draw every country once, filled with a
+  // unique flat RGB colour derived from its array index, onto an offscreen
+  // canvas with anti-aliasing off. To find "which country is under the
+  // mouse", we just read that one pixel's colour back — this is immune to
+  // any winding-order/validity issues in the source data (unlike a
+  // geometric point-in-polygon test, which a single malformed country ring
+  // can throw off for the whole map), because it hit-tests exactly what got
+  // painted, the same way the browser would.
+  useEffect(() => {
+    const hitCanvas = hitCanvasRef.current;
+    if (!hitCanvas) return;
+    hitCanvas.width = width;
+    hitCanvas.height = height;
+    const ctx = hitCanvas.getContext("2d", { willReadFrequently: true });
+    ctx.imageSmoothingEnabled = false;
+    ctx.clearRect(0, 0, width, height);
+    const ctxPath = d3.geoPath(projection, ctx);
+    geo.features.forEach((f, i) => {
+      const r = (i >> 16) & 255, g = (i >> 8) & 255, b = i & 255;
+      ctx.beginPath();
+      ctxPath(f);
+      ctx.fillStyle = `rgb(${r},${g},${b})`;
+      ctx.fill();
+    });
+  }, [geo, projection]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = width * dpr;
+    canvas.height = height * dpr;
+    const ctx = canvas.getContext("2d");
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, width, height);
+    const ctxPath = d3.geoPath(projection, ctx);
+
+    geo.features.forEach((f) => {
+      const name = normCountry(f.properties?.name);
+      const hasProject = countriesWithProjects.has(name);
+      const isSelected = selected === name;
+      const isHovered = hovered === name;
+      ctx.beginPath();
+      ctxPath(f);
+      ctx.fillStyle = isSelected ? C.amberBrand : isHovered && hasProject ? C.tealDeep : hasProject ? C.teal : isHovered ? "#DCE6E9" : "#EDF2F4";
+      ctx.fill();
+      ctx.lineWidth = isSelected || isHovered ? 1.6 : 0.9;
+      ctx.strokeStyle = "#5B93A6";
+      ctx.stroke();
+    });
+  }, [geo, projection, countriesWithProjects, selected, hovered]);
+
+  const countryAt = (e) => {
+    const canvas = canvasRef.current;
+    const hitCanvas = hitCanvasRef.current;
+    if (!canvas || !hitCanvas) return null;
+    const rect = canvas.getBoundingClientRect();
+    const x = Math.round(((e.clientX - rect.left) / rect.width) * width);
+    const y = Math.round(((e.clientY - rect.top) / rect.height) * height);
+    const ctx = hitCanvas.getContext("2d", { willReadFrequently: true });
+    const [r, g, b] = ctx.getImageData(x, y, 1, 1).data;
+    if (r === 0 && g === 0 && b === 0) return null; // unpainted background (ocean)
+    const index = (r << 16) | (g << 8) | b;
+    const f = geo.features[index];
+    return f ? normCountry(f.properties?.name) : null;
+  };
+
+  const handleMouseMove = (e) => {
+    const name = countryAt(e);
+    if (name !== hovered) setHovered(name);
+  };
+  const handleClick = (e) => {
+    const name = countryAt(e);
+    if (name && countriesWithProjects.has(name)) {
+      setSelected(selected === name ? null : name);
+    }
+  };
 
   const selectedProjects = selected ? projectsForCountry(selected) : [];
   const selectedActivities = selected ? activitiesForCountry(selected) : [];
@@ -1876,34 +1955,16 @@ function MapCanvas({ geo, countriesWithProjects, selected, setSelected, hovered,
     <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
       <div
         className="lg:col-span-3 relative"
-        style={{ background: "#FFFFFF", border: `1px solid ${C.lineSoft}`, willChange: "transform" }}
+        style={{ background: "#FFFFFF", border: `1px solid ${C.lineSoft}` }}
       >
-        <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto p-2" shapeRendering="geometricPrecision">
-          {geo.features.map((f, i) => {
-            const name = normCountry(f.properties?.name);
-            const hasProject = countriesWithProjects.has(name);
-            const isSelected = selected === name;
-            const isHovered = hovered === name;
-            // No opacity/transition here on purpose — animating opacity across
-            // ~180 SVG paths is what was causing some countries (Australia
-            // included) to render incompletely until a hover forced a
-            // repaint. Hover feedback is stroke/fill only now.
-            return (
-              <path
-                key={i}
-                d={pathGen(f)}
-                fill={isSelected ? C.amberBrand : isHovered && hasProject ? C.tealDeep : hasProject ? C.teal : isHovered ? "#DCE6E9" : "#EDF2F4"}
-                stroke="#5B93A6"
-                strokeWidth={isSelected || isHovered ? 1.6 : 0.9}
-                shapeRendering="geometricPrecision"
-                style={{ cursor: hasProject ? "pointer" : "default" }}
-                onClick={() => hasProject && setSelected(isSelected ? null : name)}
-                onMouseEnter={() => setHovered(name)}
-                onMouseLeave={() => setHovered(null)}
-              />
-            );
-          })}
-        </svg>
+        <canvas ref={hitCanvasRef} style={{ display: "none" }} />
+        <canvas
+          ref={canvasRef}
+          style={{ width: "100%", height: "auto", display: "block", padding: 8, cursor: hovered && countriesWithProjects.has(hovered) ? "pointer" : "default" }}
+          onMouseMove={handleMouseMove}
+          onMouseLeave={() => setHovered(null)}
+          onClick={handleClick}
+        />
         <div className="flex items-center gap-4 px-4 pb-4 pt-1 text-[11px]" style={{ color: C.inkSoft }}>
           <span className="flex items-center gap-1.5"><span style={{ width: 10, height: 10, background: C.teal, display: "inline-block", borderRadius: 3 }} /> Active intervention</span>
           <span className="flex items-center gap-1.5"><span style={{ width: 10, height: 10, background: C.amberBrand, display: "inline-block", borderRadius: 3 }} /> Selected</span>
