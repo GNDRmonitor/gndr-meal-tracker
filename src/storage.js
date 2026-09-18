@@ -17,7 +17,14 @@ async function callAppsScript(payload) {
   });
   const res = await fetch(APPS_SCRIPT_URL, { method: "POST", body: params });
   if (!res.ok) throw new Error(`Storage request failed: ${res.status}`);
-  return res.json();
+  const data = await res.json();
+  // Apps Script Web Apps always answer with HTTP 200, even when the code
+  // itself rejects the request (e.g. the domain check on a non-@gndr.org
+  // email) — so a rejection only shows up as an "error" field inside an
+  // otherwise-successful response. Without this check, a rejected write
+  // looks identical to a successful one from here.
+  if (data && data.error) throw new Error(data.error);
+  return data;
 }
 
 /* ---------- Identity ---------- */
