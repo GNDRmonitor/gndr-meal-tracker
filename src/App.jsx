@@ -20,14 +20,15 @@ const ACTIVITIES = [
   {row:5,si:"SI 1.1",output:"Output 1.1.2",activity:"Develop close-out knowledge products from the HuT project (lessons and tools for members)",owner:"Regional Lead (Asia & Europe)",contrib:"Programmes, FRIMCO",type:null,smg:null},
   {row:6,si:"SI 1.1",output:"Output 1.1.2",activity:"Develop guidance and practical tools from the LRF project for wider member use",owner:"Programmes",contrib:"",type:null,smg:null},
   {row:7,si:"SI 1.1",output:"Output 1.1.2",activity:"Finalise the women-led anticipatory action work in Indonesia & Philippines (completed Q1 2026/27)",owner:"Programmes",contrib:"",type:"Q",smg:"S/M"},
+  {row:73,si:"SI 1.1",output:"Output 1.1.2",activity:"Capacity Strengthening of CSOs and Local Government Officials on UNDP guide of Community Based Resilience Building (CBRB)",owner:"Programmes",contrib:"",type:null,smg:null},
   {row:8,si:"SI 1.1",output:"Output 1.1.3",activity:"Deliver community-led landslide resilience under the LRF project (Ethiopia & Nepal)",owner:"Programmes",contrib:"Regional Leads, FRIMCO, Operations, Policy",type:"N",smg:"S/M"},
   {row:9,si:"SI 1.1",output:"Output 1.1.3",activity:"Produce Stakeholder Needs Assessment reports for Nepal and Ethiopia (2 reports)",owner:"Programmes",contrib:"",type:null,smg:null},
   {row:10,si:"SI 1.1",output:"Output 1.1.3",activity:"Capacity building of local actors on early warnings and early action — Nepal & Ethiopia (7 communities)",owner:"Programmes",contrib:"",type:null,smg:null},
   {row:11,si:"SI 1.1",output:"Output 1.1.3",activity:"Deliver the Harnessing Technology for Climate-Smart Landslide Detection project — Kyrgyzstan",owner:"Programmes",contrib:"Regional Leads, FRIMCO, Operations, Policy",type:"N",smg:"S/M"},
   {row:12,si:"SI 1.1",output:"Output 1.1.3",activity:"Run community surveys and consultations in 5 communities (needs and feasibility assessment)",owner:"Programmes",contrib:"",type:null,smg:null},
-  {row:13,si:"SI 1.1",output:"Output 1.1.3",activity:"Develop early warning protocols in 5 communities through community workshops",owner:"Programmes",contrib:"",type:null,smg:null},
+  {row:13,si:"SI 1.1",output:"Output 1.1.3",activity:"Develop early warning protocols in 7 communities through community workshops",owner:"Programmes",contrib:"",type:null,smg:null},
   {row:14,si:"SI 1.1",output:"Output 1.1.3",activity:"Deliver nature-based solutions under the Pacific Circle project (Tonga & Kiribati)",owner:"Programmes",contrib:"Regional Leads, FRIMCO, Operations, Policy",type:"N",smg:"S/M"},
-  {row:15,si:"SI 1.2",output:"Output 1.2.1",activity:"Conduct participatory needs assessments under the Kiwa project",owner:"Programmes",contrib:"",type:null,smg:null},
+  {row:15,si:"SI 1.2",output:"Output 1.2.1",activity:"Conduct participatory needs and baseline assessments under the Kiwa project",owner:"Programmes",contrib:"",type:null,smg:null},
   {row:16,si:"SI 1.2",output:"Output 1.2.1",activity:"Conduct needs assessment under the Climate-Smart Landslide Detection project (Kyrgyzstan)",owner:"Programmes",contrib:"",type:null,smg:null},
   {row:17,si:"SI 1.2",output:"Output 1.2.1",activity:"Develop the new iteration of Views from the Frontline (VFL) — partnership building, fundraising, programme design and the VFL platform",owner:"FRIMCO + Programmes",contrib:"Regional Leads, Operations, Policy",type:"Q",smg:"S/M"},
   {row:18,si:"SI 1.2",output:"Output 1.2.2",activity:"Share REAP system-mapping evidence into the REAP partnership",owner:"FRIMCO",contrib:"Policy",type:null,smg:null},
@@ -35,16 +36,16 @@ const ACTIVITIES = [
   {row:20,si:"SI 1.2",output:"Output 1.2.3",activity:"Contribute member evidence and positions to PPED discussions",owner:"Policy",contrib:"Regional Leads, FRIMCO",type:null,smg:null},
   {row:21,si:"SI 1.2",output:"Output 1.2.3",activity:"Prepare and present evidence, summaries and presentations at global and regional forums",owner:"Policy",contrib:"Regional Leads, FRIMCO, Programmes",type:null,smg:null},
   {row:22,si:"SI 1.2",output:"Output 1.2.3",activity:"Targeted engagement with national governments (LRF Ethiopia & Nepal, Kyrgyzstan; ADPC-UNDP Ethiopia & Togo)",owner:"Policy",contrib:"Programmes",type:"N",smg:"S/M/G"},
-  {row:23,si:"SI 1.2",output:"Output 1.2.3",activity:"Showcase member-led initiatives on GNDR platforms (amplifying member evidence and solutions)",owner:"Membership Engagement",contrib:"Regions, Programmes",type:null,smg:null},
+  {row:23,si:"SI 1.2",output:"Output 1.2.3",activity:"Showcase member-led initiatives on GNDR platforms (amplifying member evidence and solutions)",owner:"Membership Engagement",contrib:"Regions, Programmes, FRIMCO",type:null,smg:null},
   {row:24,si:"SI 2.1",output:"Output 2.1.1",activity:"Support regionalisation of the Global Strategy 2026–2030 (regional work plans and cross-exchange workshops)",owner:"Regional Leads",contrib:"Membership Engagement, FRIMCO",type:"N",smg:"S/M"},
   {row:25,si:"SI 2.1",output:"Output 2.1.1",activity:"Apply REAP systems-mapping practices with members (secondary contribution to Output 1.2.2)",owner:"FRIMCO",contrib:"",type:null,smg:null},
   {row:26,si:"SI 2.1",output:"Output 2.1.2",activity:"Local Leadership Academy — member-led webinars & learning exchanges, incl. Peru replication (6 member-led webinars / 300 members + 3 NFP webinars; in-house trainers, topics TBD)",owner:"Membership Engagement",contrib:"Regional Leads, Policy, Programmes, FRIMCO",type:null,smg:null},
   {row:27,si:"SI 2.1",output:"Output 2.1.3",activity:"Locally-led delivery - Pre-Evacuation Platform (LAC)",owner:"Regional Lead (Americas & Caribbean)",contrib:"Programmes",type:null,smg:null},
   {row:28,si:"SI 2.2",output:"Output 2.2.1",activity:"SEM and PPED engagement (4 NGO constituency meetings for SEM facilitated, with monthly SEM advisory group support in 2026-27)",owner:"Policy",contrib:"Regional Leads",type:null,smg:null},
-  {row:29,si:"SI 2.2",output:"Output 2.2.2",activity:"Engage in PPED to develop and advance shared advocacy positions",owner:"Policy",contrib:"Regional Leads",type:null,smg:null},
+  {row:29,si:"SI 2.2",output:"Output 2.2.2",activity:"Engage in PPED to develop and advance shared advocacy positions",owner:"Policy",contrib:"Regional Leads, FRIMCO",type:null,smg:null},
   {row:30,si:"SI 2.2",output:"Output 2.2.2",activity:"Collaborate with UNDRR (SEM, Sendai and post-Sendai) to advance shared advocacy positions",owner:"Policy",contrib:"Regional Leads",type:null,smg:null},
-  {row:31,si:"SI 2.2",output:"Output 2.2.2",activity:"Engage in UNFCCC SB64 and COP31 to advance shared advocacy positions",owner:"Policy",contrib:"Regional leds",type:null,smg:null},
-  {row:32,si:"SI 2.2",output:"Output 2.2.2",activity:"Engage in EU, South Asia, Africa and LAC regional policy forums to advance shared advocacy positions",owner:"Policy",contrib:"Regional Leads",type:null,smg:null},
+  {row:31,si:"SI 2.2",output:"Output 2.2.2",activity:"Engage in UNFCCC SB64 and COP31 to advance shared advocacy positions",owner:"Policy",contrib:"Regional Leads, FRIMCO",type:null,smg:null},
+  {row:32,si:"SI 2.2",output:"Output 2.2.2",activity:"Engage in EU, South Asia, Africa and LAC regional policy forums to advance shared advocacy positions",owner:"Policy",contrib:"Regional Leads, FRIMCO",type:null,smg:null},
   {row:33,si:"SI 2.2",output:"Output 2.2.2",activity:"Profile GNDR in non-DRR spaces (broadening reach and influence)",owner:"FRIMCO",contrib:"Policy, Regional Leads",type:"N",smg:"S/M/G"},
   {row:34,si:"SI 2.2",output:"Output 2.2.2",activity:"Engage with the REAP board and its policy work",owner:"ED + Policy",contrib:"FRIMCO, Programmes, Regional Leads",type:null,smg:null},
   {row:35,si:"SI 2.2",output:"Output 2.2.2",activity:"Engage in SOFF processes and with Concord and Bond UK",owner:"ED",contrib:"Policy, Programmes",type:null,smg:null},
@@ -55,8 +56,8 @@ const ACTIVITIES = [
   {row:40,si:"SI 3.1",output:"Output 3.1.1",activity:"Launch the new strategy and deliver supporting strategic communications",owner:"FRIMCO",contrib:"",type:"Q",smg:"S/M/G"},
   {row:41,si:"SI 3.1",output:"Output 3.1.1",activity:"Produce member- and community-led storytelling that articulates GNDR’s identity and value",owner:"FRIMCO",contrib:"Regional Leads",type:"N",smg:"S/M/G"},
   {row:42,si:"SI 3.1",output:"Output 3.1.1",activity:"Produce a reimagined Annual Report",owner:"FRIMCO",contrib:"",type:"Q",smg:"S/M/G"},
-  {row:43,si:"SI 3.1",output:"Output 3.1.1",activity:"Create a public-facing visual network map of the membership",owner:"FRIMCO",contrib:"",type:"Q",smg:"S/M/G"},
-  {row:44,si:"SI 3.1",output:"Output 3.1.1",activity:"Communications/comms guidance embedded across GNDR projects so member stories and GNDR identity are consistently captured and shared",owner:"FRIMCO",contrib:"",type:null,smg:null},
+  {row:43,si:"SI 3.1",output:"Output 3.1.1",activity:"Create a public-facing visual network map of the membership",owner:"FRIMCO",contrib:"Membership Engagement",type:"Q",smg:"S/M/G"},
+  {row:44,si:"SI 3.1",output:"Output 3.1.1",activity:"Communications/comms guidance embedded across GNDR projects so member stories and GNDR identity are consistently captured and shared",owner:"FRIMCO",contrib:"Programmes",type:null,smg:null},
   {row:45,si:"SI 3.1",output:"Output 3.1.2",activity:"Hold Regional Advisory Group (RAG) and National Coordination meetings across all regions",owner:"Regional Leads",contrib:"Policy, Programmes, FRIMCO",type:"N",smg:"S/M/G"},
   {row:46,si:"SI 3.1",output:"Output 3.1.2",activity:"Support Global Board engagement and track governance performance KPIs",owner:"ED",contrib:"SLT",type:"N",smg:"S/M/G"},
   {row:47,si:"SI 3.1",output:"Output 3.1.2",activity:"Region's RAG, NCM and NFP delivery.",owner:"Regional Lead (Americas & Caribbean)",contrib:"",type:"N",smg:"S/M/G"},
@@ -66,7 +67,7 @@ const ACTIVITIES = [
   {row:51,si:"SI 3.1",output:"Output 3.1.3",activity:"Run the annual member survey",owner:"Membership Engagement + FRIMCO",contrib:"Regional Leads",type:null,smg:null},
   {row:52,si:"SI 3.1",output:"Output 3.1.3",activity:"Track member contribution and participation, and recognise members’ contributions",owner:"Membership Engagement",contrib:"FRIMCO, Regional Leads",type:null,smg:null},
   {row:53,si:"S 3.1",output:"Output 3.1.3",activity:"Returning co-created evidence and advocacy products to members so they can use them in their own contexts",owner:"Policy",contrib:"FRIMCO, Regional Leads",type:null,smg:null},
-  {row:54,si:"SI 3.1",output:"Output 3.1.4",activity:"Plan and conduct the Global Summit (held every 2 years)",owner:"ED",contrib:"SLT",type:null,smg:null},
+  {row:54,si:"SI 3.1",output:"Output 3.1.4",activity:"Plan and conduct the Global Summit (held every 2 years)",owner:"ED",contrib:"SLT, FRIMCO",type:null,smg:null},
   {row:55,si:"SI 3.1",output:"Output 3.1.4",activity:"Reactivate the Risk Drivers Working Groups",owner:"Risk Drivers Lead",contrib:"Regional Leads, Programmes, Membership Engagement",type:null,smg:null},
   {row:56,si:"SI 3.1",output:"Output 3.1.4",activity:"Enable thematic collaboration between members through the Community Platform",owner:"Membership Engagement",contrib:"Risk Drivers Lead, Programmes, Policy",type:null,smg:null},
   {row:57,si:"SI 3.1",output:"Output 3.1.4",activity:"Strengthen mechanisms for solidarity and mutual support between members",owner:"Membership Engagement",contrib:"Regional Leads",type:null,smg:null},
@@ -242,10 +243,11 @@ function SectionLabel({ children }) {
 
 /* ============================== IDENTITY PICKER ============================== */
 
-function IdentityPicker({ onSelect, loading }) {
+function IdentityPicker({ onSelect, loading, error }) {
   const [googleProfile, setGoogleProfile] = useState(null);
   const [team, setTeam] = useState("");
   const [authError, setAuthError] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (googleProfile) return; // already signed in, don't re-render the button
@@ -253,6 +255,12 @@ function IdentityPicker({ onSelect, loading }) {
       .then(setGoogleProfile)
       .catch((e) => setAuthError(e.message || "Sign-in failed"));
   }, [googleProfile]);
+
+  const handleContinue = async () => {
+    setSubmitting(true);
+    await onSelect({ name: googleProfile.name, email: googleProfile.email, team });
+    setSubmitting(false);
+  };
 
   return (
     <div
@@ -333,19 +341,25 @@ function IdentityPicker({ onSelect, loading }) {
           </div>
 
           <button
-            disabled={!googleProfile || !team || loading}
-            onClick={() =>
-              onSelect({ name: googleProfile.name, email: googleProfile.email, team })
-            }
+            disabled={!googleProfile || !team || loading || submitting}
+            onClick={handleContinue}
             className="w-full mt-2 px-4 py-2.5 rounded-md text-sm font-extrabold transition-opacity"
             style={{
               background: C.teal,
               color: "#fff",
-              opacity: !googleProfile || !team || loading ? 0.4 : 1,
+              opacity: !googleProfile || !team || loading || submitting ? 0.4 : 1,
             }}
           >
-            {loading ? "Loading…" : "Continue"}
+            {submitting ? "Signing you in…" : loading ? "Loading…" : "Continue"}
           </button>
+          {error && (
+            <p
+              className="text-xs mt-3 px-3 py-2.5 rounded-md leading-relaxed"
+              style={{ background: C.redBg, color: C.red }}
+            >
+              {error}
+            </p>
+          )}
         </div>
       </div>
     </div>
@@ -1871,7 +1885,7 @@ function WorldMap({ projects, activities, activityMeta, identity, onSaveProject 
 // Separate inner component so the (fairly heavy) d3-geo projection math only
 // runs once geo data is actually available.
 function MapCanvas({ geo, countriesWithProjects, selected, setSelected, hovered, setHovered, projectsForCountry, activitiesForCountry, identity, onEditProject }) {
-  const width = 960, height = 460;
+  const width = 1100, height = 560;
   const projection = d3.geoEquirectangular().fitSize([width, height], geo);
   const pathGen = d3.geoPath(projection);
 
@@ -1879,12 +1893,12 @@ function MapCanvas({ geo, countriesWithProjects, selected, setSelected, hovered,
   const selectedActivities = selected ? activitiesForCountry(selected) : [];
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
       <div
-        className="md:col-span-2 overflow-hidden relative"
+        className="lg:col-span-3 overflow-hidden relative"
         style={{ background: "#FFFFFF", border: `1px solid ${C.lineSoft}` }}
       >
-        <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto p-4">
+        <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto p-2">
           {geo.features.map((f, i) => {
             const name = normCountry(f.properties?.name);
             const hasProject = countriesWithProjects.has(name);
@@ -1894,9 +1908,9 @@ function MapCanvas({ geo, countriesWithProjects, selected, setSelected, hovered,
               <path
                 key={i}
                 d={pathGen(f)}
-                fill={isSelected ? C.amberBrand : hasProject ? C.teal : "#E7ECEE"}
-                stroke="#FFFFFF"
-                strokeWidth={isSelected || isHovered ? 1.3 : 0.6}
+                fill={isSelected ? C.amberBrand : hasProject ? C.teal : "#EDF2F4"}
+                stroke="#5B93A6"
+                strokeWidth={isSelected || isHovered ? 1.8 : 0.9}
                 opacity={isHovered && !isSelected ? 0.85 : 1}
                 style={{ cursor: hasProject ? "pointer" : "default", transition: "fill 0.15s" }}
                 onClick={() => hasProject && setSelected(isSelected ? null : name)}
@@ -2534,11 +2548,20 @@ export default function App() {
     })();
   }, []);
 
+  const [identityError, setIdentityError] = useState("");
+
   const handleSelectIdentity = async (id) => {
     const withAdmin = { ...id, isAdmin: isAdminEmail(id.email) };
+    setIdentityError("");
+    const saved = await saveIdentityToSheet(withAdmin);
+    if (!saved) {
+      setIdentityError(
+        `We couldn't save your profile — this Google account (${id.email}) may not be authorised. Please sign in with your @gndr.org account, or contact Diana if you think this is a mistake.`
+      );
+      return;
+    }
     setIdentity(withAdmin);
     rememberEmail(id.email);
-    await saveIdentityToSheet(withAdmin);
   };
 
   const handleSaveUpdate = useCallback(async (row, quarter, payload) => {
@@ -2605,7 +2628,7 @@ export default function App() {
   }
 
   if (!identity) {
-    return <IdentityPicker onSelect={handleSelectIdentity} loading={false} />;
+    return <IdentityPicker onSelect={handleSelectIdentity} loading={false} error={identityError} />;
   }
 
   const nav = [
@@ -2667,7 +2690,7 @@ export default function App() {
             style={{ background: "rgba(255,255,255,0.15)", color: "#fff", border: "1.5px solid rgba(255,255,255,0.4)" }}
           >
             <Repeat size={13} />
-            Switch person
+            Switch teams
           </button>
         </div>
       </div>
