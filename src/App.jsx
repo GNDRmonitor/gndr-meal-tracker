@@ -1898,21 +1898,25 @@ function MapCanvas({ geo, countriesWithProjects, selected, setSelected, hovered,
         className="lg:col-span-3 overflow-hidden relative"
         style={{ background: "#FFFFFF", border: `1px solid ${C.lineSoft}` }}
       >
-        <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto p-2">
+        <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto p-2" shapeRendering="geometricPrecision">
           {geo.features.map((f, i) => {
             const name = normCountry(f.properties?.name);
             const hasProject = countriesWithProjects.has(name);
             const isSelected = selected === name;
             const isHovered = hovered === name;
+            // No opacity/transition here on purpose — animating opacity across
+            // ~180 SVG paths is what was causing some countries (Australia
+            // included) to render incompletely until a hover forced a
+            // repaint. Hover feedback is stroke/fill only now.
             return (
               <path
                 key={i}
                 d={pathGen(f)}
-                fill={isSelected ? C.amberBrand : hasProject ? C.teal : "#EDF2F4"}
+                fill={isSelected ? C.amberBrand : isHovered && hasProject ? C.tealDeep : hasProject ? C.teal : isHovered ? "#DCE6E9" : "#EDF2F4"}
                 stroke="#5B93A6"
-                strokeWidth={isSelected || isHovered ? 1.8 : 0.9}
-                opacity={isHovered && !isSelected ? 0.85 : 1}
-                style={{ cursor: hasProject ? "pointer" : "default", transition: "fill 0.15s" }}
+                strokeWidth={isSelected || isHovered ? 1.6 : 0.9}
+                shapeRendering="geometricPrecision"
+                style={{ cursor: hasProject ? "pointer" : "default" }}
                 onClick={() => hasProject && setSelected(isSelected ? null : name)}
                 onMouseEnter={() => setHovered(name)}
                 onMouseLeave={() => setHovered(null)}
