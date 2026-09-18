@@ -11,6 +11,7 @@ import {
   rememberEmail, getRememberedEmail,
 } from "./storage.js";
 import { renderGoogleSignIn } from "./googleAuth.js";
+import { WORLD_GEOJSON } from "./worldGeoData.js";
 
 /* ============================== DATA ============================== */
 
@@ -1636,7 +1637,7 @@ function TargetsView({ identity }) {
 
 /* ============================== WORLD MAP ============================== */
 
-const WORLD_GEOJSON_URL = "https://raw.githubusercontent.com/johan/world.geo.json/master/countries.geo.json";
+// (map shape data now lives in src/worldGeoData.js, imported at the top of this file)
 
 // The public geojson uses slightly different names for a handful of
 // countries than our WORLD_COUNTRIES list / project data — map between them
@@ -1792,21 +1793,14 @@ function ProjectForm({ existing, onSave, onCancel }) {
 }
 
 function WorldMap({ projects, activities, activityMeta, identity, onSaveProject }) {
-  const [geo, setGeo] = useState(null);
-  const [loadError, setLoadError] = useState(false);
+  // The map shape data is bundled directly (src/worldGeoData.js) rather than
+  // fetched at runtime — this removes a network dependency and a fetch-timing
+  // variable that could interact with the initial paint.
+  const geo = WORLD_GEOJSON;
   const [selected, setSelected] = useState(null);
   const [hovered, setHovered] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [editingProject, setEditingProject] = useState(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    fetch(WORLD_GEOJSON_URL)
-      .then((r) => r.json())
-      .then((d) => { if (!cancelled) setGeo(d); })
-      .catch(() => { if (!cancelled) setLoadError(true); });
-    return () => { cancelled = true; };
-  }, []);
 
   const countriesWithProjects = useMemo(() => {
     const set = new Set();
@@ -1828,14 +1822,6 @@ function WorldMap({ projects, activities, activityMeta, identity, onSaveProject 
     setShowForm(false);
     setEditingProject(null);
   };
-
-  if (loadError) {
-    return (
-      <div className="rounded-lg p-6 text-sm text-center" style={{ background: C.paperRaised, border: `1px solid ${C.lineSoft}`, color: C.muted }}>
-        Couldn't load the world map (no connection to the map data source). Try refreshing.
-      </div>
-    );
-  }
 
   return (
     <div>
@@ -1860,24 +1846,18 @@ function WorldMap({ projects, activities, activityMeta, identity, onSaveProject 
         />
       )}
 
-      {!geo ? (
-        <div className="rounded-lg p-10 flex items-center justify-center" style={{ background: C.paperRaised, border: `1px solid ${C.lineSoft}` }}>
-          <Loader2 className="animate-spin" size={20} color={C.teal} />
-        </div>
-      ) : (
-        <MapCanvas
-          geo={geo}
-          countriesWithProjects={countriesWithProjects}
-          selected={selected}
-          setSelected={setSelected}
-          hovered={hovered}
-          setHovered={setHovered}
-          projectsForCountry={projectsForCountry}
-          activitiesForCountry={activitiesForCountry}
-          identity={identity}
-          onEditProject={(p) => { setEditingProject(p); setShowForm(true); }}
-        />
-      )}
+      <MapCanvas
+        geo={geo}
+        countriesWithProjects={countriesWithProjects}
+        selected={selected}
+        setSelected={setSelected}
+        hovered={hovered}
+        setHovered={setHovered}
+        projectsForCountry={projectsForCountry}
+        activitiesForCountry={activitiesForCountry}
+        identity={identity}
+        onEditProject={(p) => { setEditingProject(p); setShowForm(true); }}
+      />
     </div>
   );
 }
@@ -1895,8 +1875,8 @@ function MapCanvas({ geo, countriesWithProjects, selected, setSelected, hovered,
   return (
     <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
       <div
-        className="lg:col-span-3 overflow-hidden relative"
-        style={{ background: "#FFFFFF", border: `1px solid ${C.lineSoft}` }}
+        className="lg:col-span-3 relative"
+        style={{ background: "#FFFFFF", border: `1px solid ${C.lineSoft}`, willChange: "transform" }}
       >
         <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-auto p-2" shapeRendering="geometricPrecision">
           {geo.features.map((f, i) => {
@@ -2573,10 +2553,12 @@ export default function App() {
       const next = { ...prev, [row]: { ...(prev[row] || {}), [quarter]: payload } };
       return next;
     });
+    const activity = ACTIVITIES.find((a) => a.row === row);
     await setActivityUpdate({
       activityRow: row, quarter,
       plan: payload.plan, whatHappened: payload.whatHappened, adaptation: payload.adaptation,
       confidence: payload.confidence, contributorComments: payload.contributorComments,
+      activityName: activity?.activity || "", output: activity?.output || "",
       updatedBy: payload.updatedBy, updatedByEmail: identity?.email,
     });
   }, [identity]);
