@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback, useRef } from "react"
 import { ChevronRight, ChevronDown, Circle, CheckCircle2, AlertTriangle, Radio, Target, ClipboardList, LayoutGrid, X, Loader2, Gauge, Download, Repeat, Lock, MapPin, Globe2, Pencil } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell, LabelList } from "recharts";
 import * as d3 from "d3";
+import * as topojson from "topojson-client";
 import {
   getIdentity, setIdentity as saveIdentityToSheet,
   getAllActivityUpdates, setActivityUpdate,
@@ -1496,7 +1497,7 @@ const DEFAULT_PROJECTS = [
 
 // Full list of UN member/observer state names, for the "countries involved"
 // multi-select on an activity. Plain English short names.
-const WORLD_COUNTRIES = ["Afghanistan","Albania","Algeria","Andorra","Angola","Antigua and Barbuda","Argentina","Armenia","Australia","Austria","Azerbaijan","Bahamas","Bahrain","Bangladesh","Barbados","Belarus","Belgium","Belize","Benin","Bhutan","Bolivia","Bosnia and Herzegovina","Botswana","Brazil","Brunei","Bulgaria","Burkina Faso","Burundi","Cabo Verde","Cambodia","Cameroon","Canada","Central African Republic","Chad","Chile","China","Colombia","Comoros","Congo (Republic of)","Costa Rica","Croatia","Cuba","Cyprus","Czechia","Democratic Republic of the Congo","Denmark","Djibouti","Dominica","Dominican Republic","Ecuador","Egypt","El Salvador","Equatorial Guinea","Eritrea","Estonia","Eswatini","Ethiopia","Fiji","Finland","France","Gabon","Gambia","Georgia","Germany","Ghana","Greece","Grenada","Guatemala","Guinea","Guinea-Bissau","Guyana","Haiti","Honduras","Hungary","Iceland","India","Indonesia","Iran","Iraq","Ireland","Israel","Italy","Jamaica","Japan","Jordan","Kazakhstan","Kenya","Kiribati","Kosovo","Kuwait","Kyrgyzstan","Laos","Latvia","Lebanon","Lesotho","Liberia","Libya","Liechtenstein","Lithuania","Luxembourg","Madagascar","Malawi","Malaysia","Maldives","Mali","Malta","Marshall Islands","Mauritania","Mauritius","Mexico","Micronesia","Moldova","Monaco","Mongolia","Montenegro","Morocco","Mozambique","Myanmar","Namibia","Nauru","Nepal","Netherlands","New Zealand","Nicaragua","Niger","Nigeria","North Korea","North Macedonia","Norway","Oman","Pakistan","Palau","Palestine","Panama","Papua New Guinea","Paraguay","Peru","Philippines","Poland","Portugal","Qatar","Romania","Russia","Rwanda","Saint Kitts and Nevis","Saint Lucia","Saint Vincent and the Grenadines","Samoa","San Marino","Sao Tome and Principe","Saudi Arabia","Senegal","Serbia","Seychelles","Sierra Leone","Singapore","Slovakia","Slovenia","Solomon Islands","Somalia","South Africa","South Korea","South Sudan","Spain","Sri Lanka","Sudan","Suriname","Sweden","Switzerland","Syria","Taiwan","Tajikistan","Tanzania","Thailand","Timor-Leste","Togo","Tonga","Trinidad and Tobago","Tunisia","Turkey","Turkmenistan","Tuvalu","Uganda","Ukraine","United Arab Emirates","United Kingdom","United States","Uruguay","Uzbekistan","Vanuatu","Vatican City","Venezuela","Vietnam","Yemen","Zambia","Zimbabwe"];
+const WORLD_COUNTRIES = ["Afghanistan","Albania","Algeria","Andorra","Angola","Antigua and Barbuda","Argentina","Armenia","Australia","Austria","Azerbaijan","Bahamas","Bahrain","Bangladesh","Barbados","Belarus","Belgium","Belize","Benin","Bhutan","Bolivia","Bosnia and Herzegovina","Botswana","Brazil","Brunei","Bulgaria","Burkina Faso","Burundi","Cabo Verde","Cambodia","Cameroon","Canada","Central African Republic","Chad","Chile","China","Colombia","Comoros","Congo (Republic of)","Costa Rica","Côte d'Ivoire","Croatia","Cuba","Cyprus","Czechia","Democratic Republic of the Congo","Denmark","Djibouti","Dominica","Dominican Republic","Ecuador","Egypt","El Salvador","Equatorial Guinea","Eritrea","Estonia","Eswatini","Ethiopia","Fiji","Finland","France","Gabon","Gambia","Georgia","Germany","Ghana","Greece","Grenada","Guatemala","Guinea","Guinea-Bissau","Guyana","Haiti","Honduras","Hungary","Iceland","India","Indonesia","Iran","Iraq","Ireland","Israel","Italy","Jamaica","Japan","Jordan","Kazakhstan","Kenya","Kiribati","Kosovo","Kuwait","Kyrgyzstan","Laos","Latvia","Lebanon","Lesotho","Liberia","Libya","Liechtenstein","Lithuania","Luxembourg","Madagascar","Malawi","Malaysia","Maldives","Mali","Malta","Marshall Islands","Mauritania","Mauritius","Mexico","Micronesia","Moldova","Monaco","Mongolia","Montenegro","Morocco","Mozambique","Myanmar","Namibia","Nauru","Nepal","Netherlands","New Zealand","Nicaragua","Niger","Nigeria","North Korea","North Macedonia","Norway","Oman","Pakistan","Palau","Palestine","Panama","Papua New Guinea","Paraguay","Peru","Philippines","Poland","Portugal","Qatar","Romania","Russia","Rwanda","Saint Kitts and Nevis","Saint Lucia","Saint Vincent and the Grenadines","Samoa","San Marino","Sao Tome and Principe","Saudi Arabia","Senegal","Serbia","Seychelles","Sierra Leone","Singapore","Slovakia","Slovenia","Solomon Islands","Somalia","South Africa","South Korea","South Sudan","Spain","Sri Lanka","Sudan","Suriname","Sweden","Switzerland","Syria","Taiwan","Tajikistan","Tanzania","Thailand","Timor-Leste","Togo","Tonga","Trinidad and Tobago","Tunisia","Turkey","Turkmenistan","Tuvalu","Uganda","Ukraine","United Arab Emirates","United Kingdom","United States","Uruguay","Uzbekistan","Vanuatu","Vatican City","Venezuela","Vietnam","Western Sahara","Yemen","Zambia","Zimbabwe"];
 
 const SI_OUTCOMES = {
   "SI 1.1 — Harnessing practice-led learning": "Communities and member CSOs and their practices are at the forefront of developing useful, innovative approaches and generating knowledge on embedding risk-informed resilience approaches.",
@@ -1645,7 +1646,9 @@ function TargetsView({ identity }) {
 const COUNTRY_NAME_ALIASES = {
   "United States of America": "United States",
   "Republic of the Congo": "Congo (Republic of)",
+  "Congo": "Congo (Republic of)",
   "Democratic Republic of the Congo": "Democratic Republic of the Congo",
+  "Dem. Rep. Congo": "Democratic Republic of the Congo",
   "United Republic of Tanzania": "Tanzania",
   "The Bahamas": "Bahamas",
   "Ivory Coast": "Côte d'Ivoire",
@@ -1657,6 +1660,15 @@ const COUNTRY_NAME_ALIASES = {
   "East Timor": "Timor-Leste",
   "Czech Republic": "Czechia",
   "Myanmar": "Myanmar",
+  // world-atlas (the live map data source) abbreviates several names
+  // differently from our own country picker's list — aliased so a country
+  // tagged on an activity/project still matches its shape on the map.
+  "S. Sudan": "South Sudan",
+  "Central African Rep.": "Central African Republic",
+  "Eq. Guinea": "Equatorial Guinea",
+  "W. Sahara": "Western Sahara",
+  "Dominican Rep.": "Dominican Republic",
+  "Bosnia and Herz.": "Bosnia and Herzegovina",
 };
 function normCountry(name) {
   if (!name) return name;
@@ -1693,82 +1705,82 @@ function ProjectForm({ existing, onSave, onCancel }) {
   };
 
   return (
-    <div className="rounded-lg p-4 mb-4" style={{ background: "#fff", border: `1.5px solid ${C.teal}` }}>
-      <div className="text-sm font-bold mb-3" style={{ color: C.teal }}>
+    <div className="rounded-lg p-4 mb-4" style={{ background: "#fff", border: `1.5px solid ${MT.teal}`, fontFamily: MT.font }}>
+      <div className="text-sm font-bold mb-3" style={{ color: MT.teal }}>
         {existing ? "Edit project" : "Add a project"}
       </div>
 
-      <label className="block text-xs font-semibold mb-1" style={{ color: C.ink }}>Project name</label>
+      <label className="block text-xs font-semibold mb-1" style={{ color: MT.ink }}>Project name</label>
       <input
         value={name}
         onChange={(e) => setName(e.target.value)}
         className="w-full px-3 py-2 rounded-md text-sm outline-none mb-3"
-        style={{ border: `1.5px solid ${C.line}`, background: C.paper, color: C.ink }}
+        style={{ border: `1.5px solid ${MT.hair}`, background: "#fff", color: MT.ink }}
       />
 
-      <label className="block text-xs font-semibold mb-1" style={{ color: C.ink }}>Country / countries</label>
+      <label className="block text-xs font-semibold mb-1" style={{ color: MT.ink }}>Country / countries</label>
       <div className="relative mb-3">
         <button
           onClick={() => setCountryOpen((v) => !v)}
           className="w-full text-left px-3 py-2 rounded-md text-sm"
-          style={{ border: `1.5px solid ${C.line}`, background: C.paper, color: countries.length ? C.ink : C.muted }}
+          style={{ border: `1.5px solid ${MT.hair}`, background: "#fff", color: countries.length ? MT.ink : MT.muted }}
         >
           {countries.length ? countries.join(", ") : "Select countries…"}
         </button>
         {countryOpen && (
-          <div className="absolute z-20 top-full left-0 mt-1 rounded-lg shadow-lg overflow-hidden w-full" style={{ background: "#fff", border: `1px solid ${C.line}` }}>
+          <div className="absolute z-20 top-full left-0 mt-1 rounded-lg shadow-lg overflow-hidden w-full" style={{ background: "#fff", border: `1px solid ${MT.hair}` }}>
             <div className="max-h-48 overflow-y-auto p-1.5">
               {WORLD_COUNTRIES.map((c) => (
-                <label key={c} className="flex items-center gap-2 px-2 py-1 rounded text-xs cursor-pointer" style={{ color: C.ink }}>
+                <label key={c} className="flex items-center gap-2 px-2 py-1 rounded text-xs cursor-pointer" style={{ color: MT.ink }}>
                   <input type="checkbox" checked={countries.includes(c)} onChange={() => toggleCountry(c)} />
                   {c}
                 </label>
               ))}
             </div>
-            <button onClick={() => setCountryOpen(false)} className="w-full text-xs py-1.5" style={{ background: C.lineSoft, color: C.tealDeep }}>Done</button>
+            <button onClick={() => setCountryOpen(false)} className="w-full text-xs py-1.5" style={{ background: MT.hair, color: MT.tealDark }}>Done</button>
           </div>
         )}
       </div>
 
       <div className="grid grid-cols-2 gap-3 mb-3">
         <div>
-          <label className="block text-xs font-semibold mb-1" style={{ color: C.ink }}>Donor</label>
+          <label className="block text-xs font-semibold mb-1" style={{ color: MT.ink }}>Donor</label>
           <input
             value={donor}
             onChange={(e) => setDonor(e.target.value)}
             className="w-full px-3 py-2 rounded-md text-sm outline-none"
-            style={{ border: `1.5px solid ${C.line}`, background: C.paper, color: C.ink }}
+            style={{ border: `1.5px solid ${MT.hair}`, background: "#fff", color: MT.ink }}
           />
         </div>
         <div>
-          <label className="block text-xs font-semibold mb-1" style={{ color: C.ink }}>Partners</label>
+          <label className="block text-xs font-semibold mb-1" style={{ color: MT.ink }}>Partners</label>
           <input
             value={partners}
             onChange={(e) => setPartners(e.target.value)}
             className="w-full px-3 py-2 rounded-md text-sm outline-none"
-            style={{ border: `1.5px solid ${C.line}`, background: C.paper, color: C.ink }}
+            style={{ border: `1.5px solid ${MT.hair}`, background: "#fff", color: MT.ink }}
           />
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-3 mb-4">
         <div>
-          <label className="block text-xs font-semibold mb-1" style={{ color: C.ink }}>Duration</label>
+          <label className="block text-xs font-semibold mb-1" style={{ color: MT.ink }}>Duration</label>
           <input
             value={duration}
             onChange={(e) => setDuration(e.target.value)}
             placeholder="e.g. 2026–2028"
             className="w-full px-3 py-2 rounded-md text-sm outline-none"
-            style={{ border: `1.5px solid ${C.line}`, background: C.paper, color: C.ink }}
+            style={{ border: `1.5px solid ${MT.hair}`, background: "#fff", color: MT.ink }}
           />
         </div>
         <div>
-          <label className="block text-xs font-semibold mb-1" style={{ color: C.ink }}>Phase</label>
+          <label className="block text-xs font-semibold mb-1" style={{ color: MT.ink }}>Phase</label>
           <select
             value={phase}
             onChange={(e) => setPhase(e.target.value)}
             className="w-full px-3 py-2 rounded-md text-sm outline-none"
-            style={{ border: `1.5px solid ${C.line}`, background: C.paper, color: C.ink }}
+            style={{ border: `1.5px solid ${MT.hair}`, background: "#fff", color: MT.ink }}
           >
             {PROJECT_PHASES.map((p) => <option key={p} value={p}>{p}</option>)}
           </select>
@@ -1780,11 +1792,11 @@ function ProjectForm({ existing, onSave, onCancel }) {
           onClick={handleSave}
           disabled={saving || !name.trim() || countries.length === 0}
           className="px-4 py-2 rounded-md text-xs font-semibold"
-          style={{ background: C.teal, color: "#fff", opacity: saving || !name.trim() || countries.length === 0 ? 0.5 : 1 }}
+          style={{ background: MT.teal, color: "#fff", opacity: saving || !name.trim() || countries.length === 0 ? 0.5 : 1 }}
         >
           {saving ? "Saving…" : "Save project"}
         </button>
-        <button onClick={onCancel} className="px-4 py-2 rounded-md text-xs font-semibold" style={{ color: C.inkSoft, border: `1.5px solid ${C.line}` }}>
+        <button onClick={onCancel} className="px-4 py-2 rounded-md text-xs font-semibold" style={{ color: MT.muted, border: `1.5px solid ${MT.hair}` }}>
           Cancel
         </button>
       </div>
@@ -1792,15 +1804,43 @@ function ProjectForm({ existing, onSave, onCancel }) {
   );
 }
 
+// ===== Design tokens ported from the GNDR Activity Map reference (Claude Design) =====
+const MT = {
+  teal: "#0E7A8E", tealDark: "#0A5B6B", tealInk: "#08434F",
+  orange: "#F5A623", orangeDark: "#D3860B",
+  ocean: "#F4F8F9", land: "#DFEAEC", landHover: "#CBDDE0", landLine: "#FFFFFF", landDim: "#E9F0F1",
+  ink: "#1C2B2F", muted: "#5E7378", hair: "#DCE7E9",
+  font: "'Barlow', Helvetica, Arial, sans-serif",
+  fontCondensed: "'Barlow Condensed', Helvetica, Arial, sans-serif",
+};
+
+// Country lists per region, matching world-atlas's naming (same lists as the
+// design reference) — used only for the map's region filter chips.
+const MAP_REGIONS = {
+  World: null,
+  Africa: ["Kenya","Nigeria","Ethiopia","South Africa","Morocco","Senegal","Uganda","Tanzania","Ghana","Zambia","Zimbabwe","Egypt","Dem. Rep. Congo","Mali","Niger","Chad","Angola","Mozambique","Madagascar","Somalia","Sudan","S. Sudan","Cameroon","Côte d'Ivoire","Burkina Faso","Algeria","Libya","Tunisia","Namibia","Botswana","Malawi","Rwanda","Burundi","Guinea","Benin","Togo","Sierra Leone","Liberia","Mauritania","Gabon","Congo","Central African Rep.","Eritrea","Djibouti","Lesotho","Eq. Guinea","Guinea-Bissau","Gambia","Swaziland","W. Sahara","Somaliland"],
+  Asia: ["Philippines","India","Indonesia","Nepal","Bangladesh","Pakistan","Vietnam","Thailand","Myanmar","Cambodia","Sri Lanka","China","Japan","Mongolia","Malaysia","Afghanistan","Iran","Iraq","Kazakhstan","Uzbekistan","Kyrgyzstan","Tajikistan","Turkmenistan","Laos","Bhutan","Papua New Guinea","Australia","New Zealand","Timor-Leste","Yemen","Oman","Saudi Arabia","Syria","Jordan","Lebanon","Israel","Palestine","Turkey","South Korea","North Korea","Taiwan"],
+  Americas: ["El Salvador","Guatemala","Honduras","Nicaragua","Costa Rica","Panama","Colombia","Peru","Ecuador","Bolivia","Chile","Argentina","Brazil","Uruguay","Paraguay","Venezuela","Mexico","Cuba","Haiti","Dominican Rep.","Jamaica","Belize","Guyana","Suriname","Trinidad and Tobago","Puerto Rico","United States of America","Canada","Greenland"],
+  Europe: ["France","Germany","Spain","Portugal","Italy","United Kingdom","Ireland","Netherlands","Belgium","Switzerland","Austria","Poland","Czechia","Slovakia","Hungary","Romania","Bulgaria","Greece","Serbia","Croatia","Bosnia and Herz.","Albania","North Macedonia","Montenegro","Kosovo","Slovenia","Norway","Sweden","Finland","Denmark","Estonia","Latvia","Lithuania","Belarus","Ukraine","Moldova","Russia","Iceland","Luxembourg","Cyprus"],
+};
+
+const WORLD_ATLAS_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-110m.json";
+const MAP_W = 1160, MAP_H = 620;
+
 function WorldMap({ projects, activities, activityMeta, identity, onSaveProject }) {
-  // The map shape data is bundled directly (src/worldGeoData.js) rather than
-  // fetched at runtime — this removes a network dependency and a fetch-timing
-  // variable that could interact with the initial paint.
-  const geo = WORLD_GEOJSON;
+  const svgRef = useRef(null);
+  const gRef = useRef(null);
+  const pathRef = useRef(null);
+  const zoomRef = useRef(null);
+  const selectedRef = useRef(null);
+  const [features, setFeatures] = useState(null);
   const [selected, setSelected] = useState(null);
-  const [hovered, setHovered] = useState(null);
+  const [activeRegion, setActiveRegion] = useState("World");
+  const [tip, setTip] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [editingProject, setEditingProject] = useState(null);
+
+  useEffect(() => { selectedRef.current = selected; }, [selected]);
 
   const countriesWithProjects = useMemo(() => {
     const set = new Set();
@@ -1809,12 +1849,169 @@ function WorldMap({ projects, activities, activityMeta, identity, onSaveProject 
   }, [projects]);
 
   const projectsForCountry = (name) => projects.filter((p) => splitList(p.countries).map(normCountry).includes(name));
-  const activitiesForCountry = (name) => {
-    return activities.filter((a) => {
-      const meta = activityMeta[a.row];
-      if (!meta?.countries) return false;
-      return splitList(meta.countries).map(normCountry).includes(name);
+  const activitiesForCountry = (name) => activities.filter((a) => {
+    const meta = activityMeta[a.row];
+    if (!meta?.countries) return false;
+    return splitList(meta.countries).map(normCountry).includes(name);
+  });
+
+  // Load world shape data — world-atlas via CDN (matching the design
+  // reference exactly), falling back to our own bundled, pre-verified
+  // GeoJSON if the network request fails for any reason.
+  useEffect(() => {
+    let cancelled = false;
+    d3.json(WORLD_ATLAS_URL)
+      .then((topo) => {
+        if (cancelled) return;
+        const fc = topojson.feature(topo, topo.objects.countries);
+        setFeatures(fc.features);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setFeatures(WORLD_GEOJSON.features);
+      });
+    return () => { cancelled = true; };
+  }, []);
+
+  // Build the map once (per features/data-availability change) — fully
+  // imperative D3, same approach as the design reference: zoom/pan, halos
+  // and labels on active countries, hover tooltip, click to select.
+  useEffect(() => {
+    if (!features || !svgRef.current) return;
+    const svg = d3.select(svgRef.current);
+    svg.selectAll("*").remove();
+
+    const projection = d3.geoNaturalEarth1();
+    const path = d3.geoPath(projection);
+    pathRef.current = path;
+    projection.fitExtent([[14, 14], [MAP_W - 14, MAP_H - 14]], { type: "FeatureCollection", features });
+
+    const g = svg.append("g");
+    gRef.current = g;
+
+    const zoomB = d3.zoom().scaleExtent([1, 14]).translateExtent([[0, 0], [MAP_W, MAP_H]])
+      .on("start", () => svg.classed("dragging", true))
+      .on("end", () => svg.classed("dragging", false))
+      .on("zoom", (e) => { g.attr("transform", e.transform); relabel(e.transform.k); });
+    svg.call(zoomB);
+    zoomRef.current = zoomB;
+
+    function relabel(k) {
+      g.selectAll(".gm-label").attr("font-size", (11 / Math.sqrt(k)).toFixed(2) + "px").attr("stroke-width", 3 / k);
+      g.selectAll(".gm-marker").attr("r", 11 / k);
+    }
+
+    g.append("path").attr("d", path({ type: "Sphere" }))
+      .attr("fill", "none").attr("stroke", "#C9DADD").attr("stroke-width", 1);
+
+    const fillFor = (name) => countriesWithProjects.has(name) ? MT.teal : MT.land;
+
+    g.selectAll("path.gm-country").data(features).join("path")
+      .attr("class", "gm-country")
+      .attr("d", path)
+      .attr("fill", (d) => fillFor(normCountry(d.properties.name)))
+      .attr("stroke", MT.landLine)
+      .attr("stroke-width", 0.6)
+      .style("vector-effect", "non-scaling-stroke")
+      .style("transition", "fill .12s")
+      .style("cursor", (d) => countriesWithProjects.has(normCountry(d.properties.name)) ? "pointer" : "default")
+      .on("mousemove", function (ev, d) {
+        const name = normCountry(d.properties.name);
+        const box = svgRef.current.getBoundingClientRect();
+        setTip({ x: ev.clientX - box.left, y: ev.clientY - box.top, name, hasData: countriesWithProjects.has(name) });
+      })
+      .on("mouseenter", function (ev, d) {
+        const name = normCountry(d.properties.name);
+        if (name !== selectedRef.current) d3.select(this).attr("fill", countriesWithProjects.has(name) ? "#12667A" : MT.landHover);
+      })
+      .on("mouseleave", function (ev, d) {
+        setTip(null);
+        const name = normCountry(d.properties.name);
+        if (name !== selectedRef.current) d3.select(this).attr("fill", fillFor(name));
+      })
+      .on("click", function (ev, d) {
+        setTip(null);
+        const name = normCountry(d.properties.name);
+        if (countriesWithProjects.has(name)) setSelected((s) => (s === name ? null : name));
+      });
+
+    countriesWithProjects.forEach((name) => {
+      const f = features.find((x) => normCountry(x.properties.name) === name);
+      if (!f) return;
+      const c = path.centroid(f);
+      g.append("circle").attr("class", "gm-marker").attr("data-name", name)
+        .attr("cx", c[0]).attr("cy", c[1]).attr("r", 11)
+        .attr("fill", "none").attr("stroke", MT.teal).attr("stroke-width", 1.6)
+        .style("vector-effect", "non-scaling-stroke").style("pointer-events", "none");
+      g.append("text").attr("class", "gm-label").attr("data-name", name)
+        .attr("x", c[0]).attr("y", c[1] - 16).attr("text-anchor", "middle").text(name)
+        .style("font", "600 11px 'Barlow Condensed'").style("letter-spacing", ".04em")
+        .style("text-transform", "uppercase").attr("fill", MT.tealInk)
+        .style("paint-order", "stroke").style("stroke", "rgba(255,255,255,.9)").style("stroke-width", "3px")
+        .style("pointer-events", "none");
     });
+
+    if (selectedRef.current) {
+      g.selectAll("path.gm-country").attr("fill", (d) => normCountry(d.properties.name) === selectedRef.current ? MT.orange : fillFor(normCountry(d.properties.name)));
+      g.selectAll(".gm-marker").attr("stroke", function () { return this.getAttribute("data-name") === selectedRef.current ? MT.orangeDark : MT.teal; });
+    }
+  }, [features, countriesWithProjects]);
+
+  // Selection styling only — doesn't rebuild the whole map, so zoom/pan state survives.
+  useEffect(() => {
+    const g = gRef.current;
+    if (!g) return;
+    g.selectAll("path.gm-country").attr("fill", (d) => {
+      const name = normCountry(d.properties.name);
+      if (name === selected) return MT.orange;
+      return countriesWithProjects.has(name) ? MT.teal : MT.land;
+    });
+    g.selectAll(".gm-marker").attr("stroke", function () {
+      return this.getAttribute("data-name") === selected ? MT.orangeDark : MT.teal;
+    });
+  }, [selected, countriesWithProjects]);
+
+  const zoomTo = (bounds, pad = 40) => {
+    if (!zoomRef.current || !svgRef.current) return;
+    const [[x0, y0], [x1, y1]] = bounds;
+    const dx = x1 - x0, dy = y1 - y0;
+    const k = Math.min(14, Math.max(1, 0.9 * Math.min((MAP_W - pad) / dx, (MAP_H - pad) / dy)));
+    const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+    d3.select(svgRef.current).transition().duration(750)
+      .call(zoomRef.current.transform, d3.zoomIdentity.translate(MAP_W / 2, MAP_H / 2).scale(k).translate(-cx, -cy));
+  };
+
+  const applyRegion = (region) => {
+    setActiveRegion(region);
+    const g = gRef.current;
+    const list = MAP_REGIONS[region];
+    if (g) g.selectAll("path.gm-country").style("opacity", (d) => list && !list.includes(d.properties.name) ? 1 : 1)
+      .attr("fill", (d) => {
+        const rawName = d.properties.name;
+        const name = normCountry(rawName);
+        if (list && !list.includes(rawName)) return MT.landDim;
+        if (name === selected) return MT.orange;
+        return countriesWithProjects.has(name) ? MT.teal : MT.land;
+      });
+    if (!list) {
+      d3.select(svgRef.current).transition().duration(700).call(zoomRef.current.transform, d3.zoomIdentity);
+      return;
+    }
+    if (!features || !pathRef.current) return;
+    const subset = features.filter((f) => list.includes(f.properties.name));
+    if (subset.length) zoomTo(pathRef.current.bounds({ type: "FeatureCollection", features: subset }));
+  };
+
+  const handleSearch = (e) => {
+    if (e.key !== "Enter" || !features) return;
+    const term = e.target.value.trim().toLowerCase();
+    if (!term) return;
+    const f = features.find((x) => x.properties.name.toLowerCase().startsWith(term))
+      || features.find((x) => x.properties.name.toLowerCase().includes(term));
+    if (!f) return;
+    zoomTo(pathRef.current.bounds(f), 260);
+    const name = normCountry(f.properties.name);
+    if (countriesWithProjects.has(name)) setSelected(name);
   };
 
   const handleSaveProject = async (payload) => {
@@ -1823,15 +2020,18 @@ function WorldMap({ projects, activities, activityMeta, identity, onSaveProject 
     setEditingProject(null);
   };
 
+  const selectedProjects = selected ? projectsForCountry(selected) : [];
+  const selectedActivities = selected ? activitiesForCountry(selected) : [];
+
   return (
-    <div>
+    <div style={{ fontFamily: MT.font }}>
       {identity?.isAdmin && (
         <div className="flex justify-end mb-3">
           {!showForm && (
             <button
               onClick={() => { setEditingProject(null); setShowForm(true); }}
               className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-md"
-              style={{ background: C.teal, color: "#fff" }}
+              style={{ background: MT.teal, color: "#fff" }}
             >
               <MapPin size={13} /> Add a project
             </button>
@@ -1839,195 +2039,144 @@ function WorldMap({ projects, activities, activityMeta, identity, onSaveProject 
         </div>
       )}
       {showForm && (
-        <ProjectForm
-          existing={editingProject}
-          onSave={handleSaveProject}
-          onCancel={() => { setShowForm(false); setEditingProject(null); }}
-        />
+        <ProjectForm existing={editingProject} onSave={handleSaveProject} onCancel={() => { setShowForm(false); setEditingProject(null); }} />
       )}
 
-      <MapCanvas
-        geo={geo}
-        countriesWithProjects={countriesWithProjects}
-        selected={selected}
-        setSelected={setSelected}
-        hovered={hovered}
-        setHovered={setHovered}
-        projectsForCountry={projectsForCountry}
-        activitiesForCountry={activitiesForCountry}
-        identity={identity}
-        onEditProject={(p) => { setEditingProject(p); setShowForm(true); }}
-      />
-    </div>
-  );
-}
-
-// Separate inner component so the (fairly heavy) d3-geo projection math only
-// runs once geo data is actually available.
-function MapCanvas({ geo, countriesWithProjects, selected, setSelected, hovered, setHovered, projectsForCountry, activitiesForCountry, identity, onEditProject }) {
-  const width = 1100, height = 560;
-  const canvasRef = useRef(null);
-  const hitCanvasRef = useRef(null); // offscreen, one unique flat colour per country
-  const projection = useMemo(() => d3.geoEquirectangular().fitSize([width, height], geo), [geo]);
-
-  // Hit-testing by colour index: draw every country once, filled with a
-  // unique flat RGB colour derived from its array index, onto an offscreen
-  // canvas with anti-aliasing off. To find "which country is under the
-  // mouse", we just read that one pixel's colour back — this is immune to
-  // any winding-order/validity issues in the source data (unlike a
-  // geometric point-in-polygon test, which a single malformed country ring
-  // can throw off for the whole map), because it hit-tests exactly what got
-  // painted, the same way the browser would.
-  useEffect(() => {
-    const hitCanvas = hitCanvasRef.current;
-    if (!hitCanvas) return;
-    hitCanvas.width = width;
-    hitCanvas.height = height;
-    const ctx = hitCanvas.getContext("2d", { willReadFrequently: true });
-    ctx.imageSmoothingEnabled = false;
-    ctx.clearRect(0, 0, width, height);
-    const ctxPath = d3.geoPath(projection, ctx);
-    geo.features.forEach((f, i) => {
-      const r = (i >> 16) & 255, g = (i >> 8) & 255, b = i & 255;
-      ctx.beginPath();
-      ctxPath(f);
-      ctx.fillStyle = `rgb(${r},${g},${b})`;
-      ctx.fill();
-    });
-  }, [geo, projection]);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const dpr = window.devicePixelRatio || 1;
-    canvas.width = width * dpr;
-    canvas.height = height * dpr;
-    const ctx = canvas.getContext("2d");
-    ctx.scale(dpr, dpr);
-    ctx.clearRect(0, 0, width, height);
-    const ctxPath = d3.geoPath(projection, ctx);
-
-    geo.features.forEach((f) => {
-      const name = normCountry(f.properties?.name);
-      const hasProject = countriesWithProjects.has(name);
-      const isSelected = selected === name;
-      const isHovered = hovered === name;
-      ctx.beginPath();
-      ctxPath(f);
-      ctx.fillStyle = isSelected ? C.amberBrand : isHovered && hasProject ? C.tealDeep : hasProject ? C.teal : isHovered ? "#DCE6E9" : "#EDF2F4";
-      ctx.fill();
-      ctx.lineWidth = isSelected || isHovered ? 1.6 : 0.9;
-      ctx.strokeStyle = "#5B93A6";
-      ctx.stroke();
-    });
-  }, [geo, projection, countriesWithProjects, selected, hovered]);
-
-  const countryAt = (e) => {
-    const canvas = canvasRef.current;
-    const hitCanvas = hitCanvasRef.current;
-    if (!canvas || !hitCanvas) return null;
-    const rect = canvas.getBoundingClientRect();
-    const x = Math.round(((e.clientX - rect.left) / rect.width) * width);
-    const y = Math.round(((e.clientY - rect.top) / rect.height) * height);
-    const ctx = hitCanvas.getContext("2d", { willReadFrequently: true });
-    const [r, g, b] = ctx.getImageData(x, y, 1, 1).data;
-    if (r === 0 && g === 0 && b === 0) return null; // unpainted background (ocean)
-    const index = (r << 16) | (g << 8) | b;
-    const f = geo.features[index];
-    return f ? normCountry(f.properties?.name) : null;
-  };
-
-  const handleMouseMove = (e) => {
-    const name = countryAt(e);
-    if (name !== hovered) setHovered(name);
-  };
-  const handleClick = (e) => {
-    const name = countryAt(e);
-    if (name && countriesWithProjects.has(name)) {
-      setSelected(selected === name ? null : name);
-    }
-  };
-
-  const selectedProjects = selected ? projectsForCountry(selected) : [];
-  const selectedActivities = selected ? activitiesForCountry(selected) : [];
-
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-      <div
-        className="lg:col-span-3 relative"
-        style={{ background: "#FFFFFF", border: `1px solid ${C.lineSoft}` }}
-      >
-        <canvas ref={hitCanvasRef} style={{ display: "none" }} />
-        <canvas
-          ref={canvasRef}
-          style={{ width: "100%", height: "auto", display: "block", padding: 8, cursor: hovered && countriesWithProjects.has(hovered) ? "pointer" : "default" }}
-          onMouseMove={handleMouseMove}
-          onMouseLeave={() => setHovered(null)}
-          onClick={handleClick}
-        />
-        <div className="flex items-center gap-4 px-4 pb-4 pt-1 text-[11px]" style={{ color: C.inkSoft }}>
-          <span className="flex items-center gap-1.5"><span style={{ width: 10, height: 10, background: C.teal, display: "inline-block", borderRadius: 3 }} /> Active intervention</span>
-          <span className="flex items-center gap-1.5"><span style={{ width: 10, height: 10, background: C.amberBrand, display: "inline-block", borderRadius: 3 }} /> Selected</span>
-          <span className="ml-auto font-medium" style={{ color: C.muted }}>{countriesWithProjects.size} countries with active work</span>
-        </div>
-      </div>
-
-      <div className="rounded-xl p-4" style={{ background: C.paperRaised, border: `1px solid ${C.lineSoft}` }}>
-        {!selected ? (
-          <div className="text-sm text-center py-8" style={{ color: C.muted }}>
-            <Globe2 size={22} className="mx-auto mb-2" color={C.muted} />
-            Click a coloured country to see its projects and activities.
-          </div>
-        ) : (
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <div className="text-sm font-bold" style={{ color: C.teal }}>{selected}</div>
-              <button onClick={() => setSelected(null)}><X size={16} color={C.muted} /></button>
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+        <div className="lg:col-span-3 rounded-2xl overflow-hidden" style={{ border: `1px solid ${MT.hair}`, background: "#fff" }}>
+          {/* toolbar: region chips + search */}
+          <div className="flex flex-wrap items-center gap-2.5 px-4 py-3.5" style={{ borderBottom: `1px solid ${MT.hair}` }}>
+            <div className="flex flex-wrap gap-1.5">
+              {Object.keys(MAP_REGIONS).map((r) => (
+                <button
+                  key={r}
+                  onClick={() => applyRegion(r)}
+                  className="text-[13px] font-medium px-3.5 py-2 rounded-full"
+                  style={{
+                    border: `1px solid ${activeRegion === r ? MT.teal : MT.hair}`,
+                    background: activeRegion === r ? "#E7F2F4" : "#fff",
+                    color: activeRegion === r ? MT.tealDark : MT.muted,
+                    fontWeight: activeRegion === r ? 600 : 500,
+                  }}
+                >
+                  {r}
+                </button>
+              ))}
             </div>
+            <label className="ml-auto flex items-center gap-2 rounded-full px-3.5 py-1.5" style={{ border: `1px solid ${MT.hair}`, minWidth: 200 }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke={MT.muted} strokeWidth="2.2"><circle cx="11" cy="11" r="7" /><path d="M20 20l-4.3-4.3" /></svg>
+              <input
+                type="search"
+                placeholder="Find a country"
+                onKeyDown={handleSearch}
+                className="border-0 outline-none text-sm w-full"
+                style={{ color: MT.ink, fontFamily: MT.font, background: "transparent" }}
+              />
+            </label>
+          </div>
 
-            <SectionLabel>Projects ({selectedProjects.length})</SectionLabel>
-            {selectedProjects.length === 0 ? (
-              <p className="text-xs mb-4" style={{ color: C.muted }}>None recorded.</p>
+          {/* map stage */}
+          <div className="relative" style={{ background: MT.ocean }}>
+            {!features ? (
+              <div className="flex items-center justify-center" style={{ height: 300 }}>
+                <Loader2 className="animate-spin" size={20} color={MT.teal} />
+              </div>
             ) : (
-              <div className="space-y-2 mb-4">
-                {selectedProjects.map((p) => (
-                  <div key={p.project_id} className="text-xs px-2.5 py-2 rounded-md" style={{ background: C.tealTint }}>
-                    <div className="flex items-center justify-between">
-                      <div className="font-semibold" style={{ color: C.tealDeep }}>{p.project_name}</div>
+              <svg ref={svgRef} viewBox={`0 0 ${MAP_W} ${MAP_H}`} style={{ display: "block", width: "100%", height: "auto", cursor: "grab" }} />
+            )}
+            <div className="absolute flex flex-col rounded-lg overflow-hidden" style={{ right: 14, top: 14, background: "#fff", border: `1px solid ${MT.hair}`, boxShadow: "0 1px 2px rgba(8,67,79,.06)" }}>
+              <button onClick={() => d3.select(svgRef.current).transition().duration(300).call(zoomRef.current.scaleBy, 1.6)}
+                className="w-[34px] h-[34px] text-[17px] font-semibold" style={{ color: MT.teal, borderBottom: `1px solid ${MT.hair}` }}>+</button>
+              <button onClick={() => d3.select(svgRef.current).transition().duration(300).call(zoomRef.current.scaleBy, 1 / 1.6)}
+                className="w-[34px] h-[34px] text-[17px] font-semibold" style={{ color: MT.teal, borderBottom: `1px solid ${MT.hair}` }}>−</button>
+              <button onClick={() => { applyRegion("World"); }}
+                className="w-[34px] h-[34px] text-[11px] font-semibold" style={{ color: MT.teal }}>RESET</button>
+            </div>
+            {tip && (
+              <div
+                className="absolute pointer-events-none rounded-md px-2.5 py-1.5"
+                style={{ left: tip.x, top: tip.y, transform: "translate(-50%,-115%)", background: MT.tealInk, color: "#fff", fontSize: 13, whiteSpace: "nowrap" }}
+              >
+                <b>{tip.name}</b>
+                <div style={{ fontSize: 11.5, opacity: 0.8, fontWeight: 400 }}>
+                  {tip.hasData
+                    ? `${projectsForCountry(tip.name).length} project${projectsForCountry(tip.name).length !== 1 ? "s" : ""} · ${activitiesForCountry(tip.name).length} activities`
+                    : "No activity recorded"}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* legend */}
+          <div className="flex flex-wrap items-center gap-5 px-4 py-3" style={{ borderTop: `1px solid ${MT.hair}`, fontSize: 13.5, color: MT.muted, fontWeight: 500 }}>
+            <div className="flex items-center gap-2"><span style={{ width: 12, height: 12, borderRadius: 3, background: MT.teal, display: "inline-block" }} />Active intervention</div>
+            <div className="flex items-center gap-2"><span style={{ width: 12, height: 12, borderRadius: 3, background: MT.orange, display: "inline-block" }} />Selected</div>
+            <div className="flex items-center gap-2"><span style={{ width: 12, height: 12, borderRadius: 3, background: MT.land, display: "inline-block" }} />No activity recorded</div>
+            <div className="ml-auto font-semibold" style={{ color: MT.tealDark }}>{countriesWithProjects.size} countries with active work</div>
+          </div>
+        </div>
+
+        {/* side panel */}
+        <aside className="rounded-2xl p-[18px] pb-[22px]" style={{ border: `1px solid ${MT.hair}`, background: "#fff", position: "sticky", top: 24 }}>
+          {!selected ? (
+            <>
+              <div className="mb-2.5" style={{ fontSize: 13, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: MT.tealInk }}>Map</div>
+              <p style={{ fontSize: 14, color: MT.muted, lineHeight: 1.5 }}>Select a highlighted country to see its projects and activities. Use the region filters or search to move around the map.</p>
+            </>
+          ) : (
+            <>
+              <div className="flex items-start gap-2.5">
+                <div className="flex-1">
+                  <div style={{ fontSize: 22, color: MT.teal, fontWeight: 600, lineHeight: 1.15 }}>{selected}</div>
+                </div>
+                <button onClick={() => setSelected(null)} style={{ color: MT.muted, fontSize: 19, background: "none", border: 0 }}>✕</button>
+              </div>
+
+              <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: MT.tealInk, margin: "22px 0 10px" }}>
+                Projects ({selectedProjects.length})
+              </div>
+              {selectedProjects.length === 0 ? (
+                <p style={{ fontSize: 14, color: MT.muted }}>No projects tagged to this country yet.</p>
+              ) : (
+                selectedProjects.map((p) => (
+                  <div key={p.project_id} className="rounded-lg mb-2.5" style={{ border: `1px solid ${MT.hair}`, borderLeft: `3px solid ${MT.teal}`, padding: "12px 13px" }}>
+                    <div className="flex items-baseline gap-2.5">
+                      <b style={{ fontSize: 15.5, color: MT.tealDark, fontWeight: 600 }}>{p.project_name}</b>
                       {identity?.isAdmin && (
-                        <button onClick={() => onEditProject(p)} className="text-[10px] underline" style={{ color: C.tealDeep }}>Edit</button>
+                        <button onClick={() => { setEditingProject(p); setShowForm(true); }} className="ml-auto" style={{ fontSize: 13, color: MT.teal, textDecoration: "underline" }}>Edit</button>
                       )}
                     </div>
-                    <div style={{ color: C.inkSoft }}>Donor: {p.donor || "—"}</div>
-                    <div style={{ color: C.inkSoft }}>Partners: {p.partners || "—"}</div>
-                    <div className="flex items-center gap-1.5 mt-1">
-                      {p.duration && <Pill color={C.tealDeep} bg="#fff">{p.duration}</Pill>}
-                      {p.phase && <Pill color={C.amberBrand} bg="#FFF6E6">{p.phase}</Pill>}
+                    <div style={{ fontSize: 14, color: MT.muted, marginTop: 4, lineHeight: 1.5 }}>
+                      Donor: {p.donor || "—"}<br />Partners: {p.partners || "—"}
+                    </div>
+                    <div className="flex gap-1.5 flex-wrap mt-2">
+                      {p.duration && <span style={{ fontSize: 12.5, fontWeight: 600, padding: "6px 9px", borderRadius: 5, background: "#EAF3F4", color: MT.tealDark }}>{p.duration}</span>}
+                      {p.phase && <span style={{ fontSize: 12.5, fontWeight: 600, padding: "6px 9px", borderRadius: 5, background: "#FDF0D8", color: "#8A5A05" }}>{p.phase}</span>}
                     </div>
                   </div>
-                ))}
-              </div>
-            )}
+                ))
+              )}
 
-            <SectionLabel>Activities ({selectedActivities.length})</SectionLabel>
-            {selectedActivities.length === 0 ? (
-              <p className="text-xs" style={{ color: C.muted }}>None tagged to this country yet.</p>
-            ) : (
-              <div className="space-y-1.5">
-                {selectedActivities.map((a) => (
-                  <div key={a.row} className="text-xs px-2.5 py-1.5 rounded-md" style={{ background: C.paper }}>
-                    <div style={{ color: C.ink }}>{a.activity}</div>
-                    <div style={{ color: C.muted }}>{a.output}</div>
-                  </div>
-                ))}
+              <div style={{ fontSize: 13, fontWeight: 700, letterSpacing: ".06em", textTransform: "uppercase", color: MT.tealInk, margin: "22px 0 10px" }}>
+                Activities ({selectedActivities.length})
               </div>
-            )}
-          </div>
-        )}
+              {selectedActivities.length === 0 ? (
+                <p style={{ fontSize: 14, color: MT.muted }}>None tagged to this country yet.</p>
+              ) : (
+                selectedActivities.map((a) => (
+                  <div key={a.row} style={{ fontSize: 14, color: MT.muted, lineHeight: 1.5, marginBottom: 2 }}>
+                    • {a.activity}
+                  </div>
+                ))
+              )}
+            </>
+          )}
+        </aside>
       </div>
     </div>
   );
 }
+
 
 function ratingInfo(rating) {
   const r = (rating || "no").toLowerCase();
