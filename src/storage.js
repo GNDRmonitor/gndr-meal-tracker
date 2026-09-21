@@ -122,12 +122,13 @@ export async function getAllActivityMeta() {
   }
 }
 
-export async function setActivityMeta({ activityRow, type, smg, countries, updatedBy, updatedByEmail }) {
+export async function setActivityMeta({ activityRow, type, smg, countries, members, updatedBy, updatedByEmail }) {
   try {
     const payload = { action: "activity_meta_set", activity_row: activityRow, updated_by: updatedBy, updated_by_email: updatedByEmail };
     if (type !== undefined) payload.type = type;
     if (smg !== undefined) payload.smg = smg;
     if (countries !== undefined) payload.countries = countries;
+    if (members !== undefined) payload.members = members;
     await callAppsScript(payload);
     return true;
   } catch (e) {
@@ -148,11 +149,11 @@ export async function getAllProjects() {
   }
 }
 
-export async function setProject({ projectId, projectName, countries, donor, partners, duration, phase, updatedBy, updatedByEmail }) {
+export async function setProject({ projectId, projectName, countries, donor, partners, duration, phase, members, updatedBy, updatedByEmail }) {
   try {
     await callAppsScript({
       action: "projects_set",
-      project_id: projectId, project_name: projectName, countries, donor, partners, duration, phase,
+      project_id: projectId, project_name: projectName, countries, donor, partners, duration, phase, members,
       updated_by: updatedBy, updated_by_email: updatedByEmail,
     });
     return true;

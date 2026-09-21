@@ -735,7 +735,50 @@ function CountryPicker({ activity, meta, onSetCountries }) {
   );
 }
 
-function ActivityRow({ activity, updates, onOpenQuarter, expanded, onToggle, identity, meta, onSetTypeSmg, onSetCountries, mode = "owner" }) {
+// Free-text for now (one member per line) — will become a dropdown, matching
+// CountryPicker, once GNDR maintains an official member list to select from.
+function MembersField({ activity, meta, onSetMembers }) {
+  const [open, setOpen] = useState(false);
+  const current = splitList(meta?.members);
+  const [draft, setDraft] = useState(current.join("\n"));
+
+  const handleOpen = () => { setDraft(current.join("\n")); setOpen(true); };
+  const handleDone = () => {
+    onSetMembers(activity.row, splitLines(draft).join(", "));
+    setOpen(false);
+  };
+
+  return (
+    <div className="relative" onClick={(e) => e.stopPropagation()}>
+      <button
+        onClick={handleOpen}
+        className="flex items-center gap-1 text-xs px-2 py-1 rounded-md"
+        style={{ border: `1px dashed ${C.line}`, color: current.length ? C.inkSoft : C.muted }}
+      >
+        <ClipboardList size={11} />
+        {current.length ? current.join(", ") : "GNDR Members (if applicable)"}
+      </button>
+      {open && (
+        <div
+          className="absolute z-20 top-full left-0 mt-1 rounded-lg shadow-lg p-2"
+          style={{ background: "#fff", border: `1px solid ${C.line}`, width: 260 }}
+        >
+          <div className="text-[11px] mb-1" style={{ color: C.muted }}>One member per line</div>
+          <textarea
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            rows={3}
+            className="w-full px-2 py-1.5 rounded-md text-xs outline-none resize-none mb-1.5"
+            style={{ border: `1px solid ${C.line}`, color: C.ink }}
+          />
+          <button onClick={handleDone} className="w-full text-xs py-1.5 rounded" style={{ background: C.lineSoft, color: C.tealDeep }}>Done</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ActivityRow({ activity, updates, onOpenQuarter, expanded, onToggle, identity, meta, onSetTypeSmg, onSetCountries, onSetMembers, mode = "owner" }) {
   const statuses = {};
   QUARTERS.forEach((q) => {
     statuses[q] = updates?.[q]?.confidence ?? null;
@@ -783,8 +826,9 @@ function ActivityRow({ activity, updates, onOpenQuarter, expanded, onToggle, ide
               <span className="font-semibold">This contributes to — 2026-27 target: </span>{outputInfo.y1}
             </div>
           )}
-          <div className="mb-2.5">
+          <div className="mb-2.5 flex flex-wrap gap-2">
             <CountryPicker activity={activity} meta={meta} onSetCountries={onSetCountries} />
+            <MembersField activity={activity} meta={meta} onSetMembers={onSetMembers} />
           </div>
           <div className="flex flex-wrap gap-2">
             {QUARTERS.map((q) => {
@@ -811,7 +855,7 @@ function ActivityRow({ activity, updates, onOpenQuarter, expanded, onToggle, ide
 
 /* ============================== MY ACTIVITIES VIEW ============================== */
 
-function MyActivitiesView({ identity, updates, onSaveUpdate, activityMeta, onSetTypeSmg, onSetCountries }) {
+function MyActivitiesView({ identity, updates, onSaveUpdate, activityMeta, onSetTypeSmg, onSetCountries, onSetMembers }) {
 
   const [tab, setTab] = useState("owner"); // owner | contributor
   const [expandedRow, setExpandedRow] = useState(null);
@@ -936,6 +980,7 @@ function MyActivitiesView({ identity, updates, onSaveUpdate, activityMeta, onSet
                       meta={activityMeta[a.row]}
                       onSetTypeSmg={onSetTypeSmg}
                       onSetCountries={onSetCountries}
+                      onSetMembers={onSetMembers}
                       mode={tab}
                     />
                   ))}
@@ -1679,11 +1724,16 @@ function splitList(str) {
   return (str || "").split(",").map((s) => s.trim()).filter(Boolean);
 }
 
+function splitLines(str) {
+  return (str || "").split("\n").map((s) => s.trim()).filter(Boolean);
+}
+
 function ProjectForm({ existing, onSave, onCancel }) {
   const [name, setName] = useState(existing?.project_name || "");
   const [countries, setCountries] = useState(splitList(existing?.countries));
-  const [donor, setDonor] = useState(existing?.donor || "");
-  const [partners, setPartners] = useState(existing?.partners || "");
+  const [donor, setDonor] = useState(existing?.donor ? existing.donor.split(",").map((s) => s.trim()).filter(Boolean).join("\n") : "");
+  const [partners, setPartners] = useState(existing?.partners ? existing.partners.split(",").map((s) => s.trim()).filter(Boolean).join("\n") : "");
+  const [members, setMembers] = useState(existing?.members ? existing.members.split(",").map((s) => s.trim()).filter(Boolean).join("\n") : "");
   const [duration, setDuration] = useState(existing?.duration || "");
   const [phase, setPhase] = useState(existing?.phase || PROJECT_PHASES[0]);
   const [countryOpen, setCountryOpen] = useState(false);
@@ -1699,7 +1749,9 @@ function ProjectForm({ existing, onSave, onCancel }) {
     await onSave({
       project_id: existing?.project_id || `proj-${Date.now()}`,
       project_name: name.trim(), countries: countries.join(", "),
-      donor: donor.trim(), partners: partners.trim(), duration: duration.trim(), phase,
+      donor: splitLines(donor).join(", "), partners: splitLines(partners).join(", "),
+      members: splitLines(members).join(", "),
+      duration: duration.trim(), phase,
     });
     setSaving(false);
   };
@@ -1745,22 +1797,41 @@ function ProjectForm({ existing, onSave, onCancel }) {
       <div className="grid grid-cols-2 gap-3 mb-3">
         <div>
           <label className="block text-xs font-semibold mb-1" style={{ color: MT.ink }}>Donor</label>
-          <input
+          <div className="text-[11px] mb-1" style={{ color: MT.muted }}>One donor per line</div>
+          <textarea
             value={donor}
             onChange={(e) => setDonor(e.target.value)}
-            className="w-full px-3 py-2 rounded-md text-sm outline-none"
+            rows={3}
+            placeholder={"e.g.\nInnovation Norway\nUSAID"}
+            className="w-full px-3 py-2 rounded-md text-sm outline-none resize-none"
             style={{ border: `1.5px solid ${MT.hair}`, background: "#fff", color: MT.ink }}
           />
         </div>
         <div>
           <label className="block text-xs font-semibold mb-1" style={{ color: MT.ink }}>Partners</label>
-          <input
+          <div className="text-[11px] mb-1" style={{ color: MT.muted }}>One partner per line</div>
+          <textarea
             value={partners}
             onChange={(e) => setPartners(e.target.value)}
-            className="w-full px-3 py-2 rounded-md text-sm outline-none"
+            rows={3}
+            placeholder={"e.g.\nIOM\nTerram Pacis"}
+            className="w-full px-3 py-2 rounded-md text-sm outline-none resize-none"
             style={{ border: `1.5px solid ${MT.hair}`, background: "#fff", color: MT.ink }}
           />
         </div>
+      </div>
+
+      <div className="mb-3">
+        <label className="block text-xs font-semibold mb-1" style={{ color: MT.ink }}>GNDR Members</label>
+        <div className="text-[11px] mb-1" style={{ color: MT.muted }}>One member per line</div>
+        <textarea
+          value={members}
+          onChange={(e) => setMembers(e.target.value)}
+          rows={3}
+          placeholder={"e.g.\nMember organisation A\nMember organisation B"}
+          className="w-full px-3 py-2 rounded-md text-sm outline-none resize-none"
+          style={{ border: `1.5px solid ${MT.hair}`, background: "#fff", color: MT.ink }}
+        />
       </div>
 
       <div className="grid grid-cols-2 gap-3 mb-4">
@@ -1819,13 +1890,103 @@ const MT = {
 const MAP_REGIONS = {
   World: null,
   Africa: ["Kenya","Nigeria","Ethiopia","South Africa","Morocco","Senegal","Uganda","Tanzania","Ghana","Zambia","Zimbabwe","Egypt","Dem. Rep. Congo","Mali","Niger","Chad","Angola","Mozambique","Madagascar","Somalia","Sudan","S. Sudan","Cameroon","Côte d'Ivoire","Burkina Faso","Algeria","Libya","Tunisia","Namibia","Botswana","Malawi","Rwanda","Burundi","Guinea","Benin","Togo","Sierra Leone","Liberia","Mauritania","Gabon","Congo","Central African Rep.","Eritrea","Djibouti","Lesotho","Eq. Guinea","Guinea-Bissau","Gambia","Swaziland","W. Sahara","Somaliland"],
-  Asia: ["Philippines","India","Indonesia","Nepal","Bangladesh","Pakistan","Vietnam","Thailand","Myanmar","Cambodia","Sri Lanka","China","Japan","Mongolia","Malaysia","Afghanistan","Iran","Iraq","Kazakhstan","Uzbekistan","Kyrgyzstan","Tajikistan","Turkmenistan","Laos","Bhutan","Papua New Guinea","Australia","New Zealand","Timor-Leste","Yemen","Oman","Saudi Arabia","Syria","Jordan","Lebanon","Israel","Palestine","Turkey","South Korea","North Korea","Taiwan"],
+  Asia: ["Philippines","India","Indonesia","Nepal","Bangladesh","Pakistan","Vietnam","Thailand","Myanmar","Cambodia","Sri Lanka","China","Japan","Mongolia","Malaysia","Afghanistan","Iran","Iraq","Kazakhstan","Uzbekistan","Kyrgyzstan","Tajikistan","Turkmenistan","Laos","Bhutan","Timor-Leste","Yemen","Oman","Saudi Arabia","Syria","Jordan","Lebanon","Israel","Palestine","Turkey","South Korea","North Korea","Taiwan"],
   Americas: ["El Salvador","Guatemala","Honduras","Nicaragua","Costa Rica","Panama","Colombia","Peru","Ecuador","Bolivia","Chile","Argentina","Brazil","Uruguay","Paraguay","Venezuela","Mexico","Cuba","Haiti","Dominican Rep.","Jamaica","Belize","Guyana","Suriname","Trinidad and Tobago","Puerto Rico","United States of America","Canada","Greenland"],
   Europe: ["France","Germany","Spain","Portugal","Italy","United Kingdom","Ireland","Netherlands","Belgium","Switzerland","Austria","Poland","Czechia","Slovakia","Hungary","Romania","Bulgaria","Greece","Serbia","Croatia","Bosnia and Herz.","Albania","North Macedonia","Montenegro","Kosovo","Slovenia","Norway","Sweden","Finland","Denmark","Estonia","Latvia","Lithuania","Belarus","Ukraine","Moldova","Russia","Iceland","Luxembourg","Cyprus"],
+  Oceania: ["Australia","New Zealand","Papua New Guinea","Fiji","Solomon Islands","Vanuatu","Samoa","Tonga","Kiribati","Tuvalu","Marshall Islands","Micronesia","Palau","Nauru"],
 };
 
-const WORLD_ATLAS_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-110m.json";
+// 50m (not 110m) resolution — the lighter 110m dataset drops very small
+// Pacific island nations (Tuvalu, Kiribati, Nauru...) entirely, since they
+// fall below its simplification threshold.
+const WORLD_ATLAS_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-50m.json";
 const MAP_W = 1160, MAP_H = 620;
+
+// Reverse lookup: canonical country name (as stored on a project/activity) -> region
+const REGION_LOOKUP = (() => {
+  const map = {};
+  Object.entries(MAP_REGIONS).forEach(([region, list]) => {
+    if (!list) return;
+    list.forEach((rawName) => { map[normCountry(rawName)] = region; });
+  });
+  return map;
+})();
+
+function computeRegionStats(projects, activities, activityMeta) {
+  const stats = {};
+  const ensure = (region) => {
+    if (!stats[region]) stats[region] = { projects: new Set(), activities: new Set(), members: new Set(), donors: new Set(), partners: new Set() };
+    return stats[region];
+  };
+
+  projects.forEach((p) => {
+    const regions = new Set(splitList(p.countries).map((c) => REGION_LOOKUP[normCountry(c)]).filter(Boolean));
+    regions.forEach((region) => {
+      const s = ensure(region);
+      s.projects.add(p.project_id);
+      splitList(p.donor).forEach((d) => s.donors.add(d));
+      splitList(p.partners).forEach((pt) => s.partners.add(pt));
+      splitList(p.members).forEach((m) => s.members.add(m));
+    });
+  });
+
+  activities.forEach((a) => {
+    const meta = activityMeta[a.row];
+    if (!meta?.countries) return;
+    const regions = new Set(splitList(meta.countries).map((c) => REGION_LOOKUP[normCountry(c)]).filter(Boolean));
+    regions.forEach((region) => {
+      const s = ensure(region);
+      s.activities.add(a.row);
+      splitList(meta.members).forEach((m) => s.members.add(m));
+    });
+  });
+
+  const order = ["Americas", "Africa", "Asia", "Europe", "Oceania"];
+  return order
+    .filter((r) => stats[r])
+    .map((region) => ({
+      region,
+      projects: stats[region].projects.size,
+      activities: stats[region].activities.size,
+      members: stats[region].members.size,
+      donors: stats[region].donors.size,
+      partners: stats[region].partners.size,
+    }));
+}
+
+function RegionalOverview({ projects, activities, activityMeta }) {
+  const rows = useMemo(() => computeRegionStats(projects, activities, activityMeta), [projects, activities, activityMeta]);
+  if (rows.length === 0) return null;
+
+  const statDefs = [
+    { key: "projects", label: "Projects" },
+    { key: "activities", label: "Activities" },
+    { key: "members", label: "Members" },
+    { key: "donors", label: "Donors" },
+    { key: "partners", label: "Partners" },
+  ];
+
+  return (
+    <div className="mb-4">
+      <div className="text-[13px] font-bold mb-2" style={{ color: MT.tealInk, fontFamily: MT.font }}>Regional overview</div>
+      <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(auto-fit, minmax(180px, 1fr))`, fontFamily: MT.font }}>
+        {rows.map((r) => (
+          <div key={r.region} className="rounded-2xl p-4" style={{ border: `1px solid ${MT.hair}`, background: "#fff" }}>
+            <div className="mb-2.5" style={{ fontSize: 15.5, fontWeight: 600, color: MT.teal }}>{r.region}</div>
+            <div className="space-y-1">
+              {statDefs.map((s) => (
+                <div key={s.key} className="flex items-center justify-between">
+                  <span style={{ fontSize: 13, color: MT.muted }}>{s.label}</span>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: MT.tealDark }}>{r[s.key]}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function WorldMap({ projects, activities, activityMeta, identity, onSaveProject }) {
   const svgRef = useRef(null);
@@ -1897,7 +2058,6 @@ function WorldMap({ projects, activities, activityMeta, identity, onSaveProject 
     zoomRef.current = zoomB;
 
     function relabel(k) {
-      g.selectAll(".gm-label").attr("font-size", (11 / Math.sqrt(k)).toFixed(2) + "px").attr("stroke-width", 3 / k);
       g.selectAll(".gm-marker").attr("r", 11 / k);
     }
 
@@ -1943,12 +2103,6 @@ function WorldMap({ projects, activities, activityMeta, identity, onSaveProject 
         .attr("cx", c[0]).attr("cy", c[1]).attr("r", 11)
         .attr("fill", "none").attr("stroke", MT.teal).attr("stroke-width", 1.6)
         .style("vector-effect", "non-scaling-stroke").style("pointer-events", "none");
-      g.append("text").attr("class", "gm-label").attr("data-name", name)
-        .attr("x", c[0]).attr("y", c[1] - 16).attr("text-anchor", "middle").text(name)
-        .style("font", "600 11px 'Barlow Condensed'").style("letter-spacing", ".04em")
-        .style("text-transform", "uppercase").attr("fill", MT.tealInk)
-        .style("paint-order", "stroke").style("stroke", "rgba(255,255,255,.9)").style("stroke-width", "3px")
-        .style("pointer-events", "none");
     });
 
     if (selectedRef.current) {
@@ -2025,6 +2179,7 @@ function WorldMap({ projects, activities, activityMeta, identity, onSaveProject 
 
   return (
     <div style={{ fontFamily: MT.font }}>
+      <RegionalOverview projects={projects} activities={activities} activityMeta={activityMeta} />
       {identity?.isAdmin && (
         <div className="flex justify-end mb-3">
           {!showForm && (
@@ -2148,6 +2303,7 @@ function WorldMap({ projects, activities, activityMeta, identity, onSaveProject 
                     </div>
                     <div style={{ fontSize: 14, color: MT.muted, marginTop: 4, lineHeight: 1.5 }}>
                       Donor: {p.donor || "—"}<br />Partners: {p.partners || "—"}
+                      {p.members && <><br />GNDR Members: {p.members}</>}
                     </div>
                     <div className="flex gap-1.5 flex-wrap mt-2">
                       {p.duration && <span style={{ fontSize: 12.5, fontWeight: 600, padding: "6px 9px", borderRadius: 5, background: "#EAF3F4", color: MT.tealDark }}>{p.duration}</span>}
@@ -2724,7 +2880,7 @@ export default function App() {
       const metaByRow = {};
       metaRows.forEach((r) => {
         if (!r.activity_row) return;
-        metaByRow[r.activity_row] = { type: r.type || "", smg: r.smg || "", countries: r.countries || "" };
+        metaByRow[r.activity_row] = { type: r.type || "", smg: r.smg || "", countries: r.countries || "", members: r.members || "" };
       });
       setActivityMetaState(metaByRow);
 
@@ -2734,7 +2890,7 @@ export default function App() {
         setProjects(projectRows.map((r) => ({
           project_id: r.project_id, project_name: r.project_name,
           countries: r.countries, donor: r.donor, partners: r.partners,
-          duration: r.duration, phase: r.phase,
+          duration: r.duration, phase: r.phase, members: r.members,
         })));
       }
 
@@ -2799,6 +2955,11 @@ export default function App() {
     await setActivityMeta({ activityRow: row, countries, updatedBy: identity?.name, updatedByEmail: identity?.email });
   }, [identity]);
 
+  const handleSetActivityMembers = useCallback(async (row, members) => {
+    setActivityMetaState((prev) => ({ ...prev, [row]: { ...(prev[row] || {}), members } }));
+    await setActivityMeta({ activityRow: row, members, updatedBy: identity?.name, updatedByEmail: identity?.email });
+  }, [identity]);
+
   const handleSaveProject = useCallback(async (payload) => {
     if (!identity?.isAdmin) return;
     setProjects((prev) => {
@@ -2811,6 +2972,7 @@ export default function App() {
     await setProject({
       projectId: payload.project_id, projectName: payload.project_name, countries: payload.countries,
       donor: payload.donor, partners: payload.partners, duration: payload.duration, phase: payload.phase,
+      members: payload.members,
       updatedBy: identity.name, updatedByEmail: identity.email,
     });
   }, [identity]);
@@ -2949,6 +3111,7 @@ export default function App() {
             activityMeta={activityMeta}
             onSetTypeSmg={handleSetActivityTypeSmg}
             onSetCountries={handleSetActivityCountries}
+            onSetMembers={handleSetActivityMembers}
           />
         )}
         {view === "all" && <AllActivitiesView updates={updates} projects={projects} activityMeta={activityMeta} identity={identity} onSaveProject={handleSaveProject} onSetTypeSmg={handleSetActivityTypeSmg} />}
