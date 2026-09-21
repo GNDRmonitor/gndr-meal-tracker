@@ -740,11 +740,11 @@ function CountryPicker({ activity, meta, onSetCountries }) {
 function MembersField({ activity, meta, onSetMembers }) {
   const [open, setOpen] = useState(false);
   const current = splitList(meta?.members);
-  const [draft, setDraft] = useState(current.join("\n"));
+  const [draft, setDraft] = useState(current.length ? current : [""]);
 
-  const handleOpen = () => { setDraft(current.join("\n")); setOpen(true); };
+  const handleOpen = () => { setDraft(current.length ? current : [""]); setOpen(true); };
   const handleDone = () => {
-    onSetMembers(activity.row, splitLines(draft).join(", "));
+    onSetMembers(activity.row, draft.filter((m) => m.trim()).join(", "));
     setOpen(false);
   };
 
@@ -763,15 +763,8 @@ function MembersField({ activity, meta, onSetMembers }) {
           className="absolute z-20 top-full left-0 mt-1 rounded-lg shadow-lg p-2"
           style={{ background: "#fff", border: `1px solid ${C.line}`, width: 260 }}
         >
-          <div className="text-[11px] mb-1" style={{ color: C.muted }}>One member per line</div>
-          <textarea
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            rows={3}
-            className="w-full px-2 py-1.5 rounded-md text-xs outline-none resize-none mb-1.5"
-            style={{ border: `1px solid ${C.line}`, color: C.ink }}
-          />
-          <button onClick={handleDone} className="w-full text-xs py-1.5 rounded" style={{ background: C.lineSoft, color: C.tealDeep }}>Done</button>
+          <RepeatableList items={draft} onChange={setDraft} placeholder="Member organisation" />
+          <button onClick={handleDone} className="w-full text-xs py-1.5 rounded mt-1.5" style={{ background: C.lineSoft, color: C.tealDeep }}>Done</button>
         </div>
       )}
     </div>
@@ -1728,12 +1721,48 @@ function splitLines(str) {
   return (str || "").split("\n").map((s) => s.trim()).filter(Boolean);
 }
 
+// Repeatable single-field rows with a "+ Add row" button and a remove (X)
+// per row — same pattern as the Indicator dashboard's entry tables, reused
+// here for simple one-value-per-row lists (donors, partners, members).
+function RepeatableList({ items, onChange, placeholder }) {
+  const list = items.length ? items : [""];
+  const update = (i, val) => onChange(list.map((v, idx) => (idx === i ? val : v)));
+  const add = () => onChange([...list, ""]);
+  const remove = (i) => onChange(list.length > 1 ? list.filter((_, idx) => idx !== i) : list);
+
+  return (
+    <div>
+      {list.map((val, i) => (
+        <div key={i} className="flex items-center gap-1.5 mb-1.5">
+          <input
+            value={val}
+            onChange={(e) => update(i, e.target.value)}
+            placeholder={placeholder}
+            className="flex-1 px-2.5 py-1.5 rounded-md text-xs outline-none"
+            style={{ border: `1.5px solid ${MT.hair}`, background: "#fff", color: MT.ink }}
+          />
+          <button onClick={() => remove(i)} disabled={list.length === 1} style={{ opacity: list.length === 1 ? 0.3 : 1 }}>
+            <X size={13} color="#C2452F" />
+          </button>
+        </div>
+      ))}
+      <button
+        onClick={add}
+        className="text-xs font-medium px-2.5 py-1 rounded-md"
+        style={{ border: `1.5px solid ${MT.teal}`, color: MT.tealDark, background: "#E7F2F4" }}
+      >
+        + Add row
+      </button>
+    </div>
+  );
+}
+
 function ProjectForm({ existing, onSave, onCancel }) {
   const [name, setName] = useState(existing?.project_name || "");
   const [countries, setCountries] = useState(splitList(existing?.countries));
-  const [donor, setDonor] = useState(existing?.donor ? existing.donor.split(",").map((s) => s.trim()).filter(Boolean).join("\n") : "");
-  const [partners, setPartners] = useState(existing?.partners ? existing.partners.split(",").map((s) => s.trim()).filter(Boolean).join("\n") : "");
-  const [members, setMembers] = useState(existing?.members ? existing.members.split(",").map((s) => s.trim()).filter(Boolean).join("\n") : "");
+  const [donor, setDonor] = useState(splitList(existing?.donor));
+  const [partners, setPartners] = useState(splitList(existing?.partners));
+  const [members, setMembers] = useState(splitList(existing?.members));
   const [duration, setDuration] = useState(existing?.duration || "");
   const [phase, setPhase] = useState(existing?.phase || PROJECT_PHASES[0]);
   const [countryOpen, setCountryOpen] = useState(false);
@@ -1749,8 +1778,8 @@ function ProjectForm({ existing, onSave, onCancel }) {
     await onSave({
       project_id: existing?.project_id || `proj-${Date.now()}`,
       project_name: name.trim(), countries: countries.join(", "),
-      donor: splitLines(donor).join(", "), partners: splitLines(partners).join(", "),
-      members: splitLines(members).join(", "),
+      donor: donor.filter((d) => d.trim()).join(", "), partners: partners.filter((p) => p.trim()).join(", "),
+      members: members.filter((m) => m.trim()).join(", "),
       duration: duration.trim(), phase,
     });
     setSaving(false);
@@ -1794,44 +1823,20 @@ function ProjectForm({ existing, onSave, onCancel }) {
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-3 mb-3">
+      <div className="grid grid-cols-2 gap-4 mb-3">
         <div>
           <label className="block text-xs font-semibold mb-1" style={{ color: MT.ink }}>Donor</label>
-          <div className="text-[11px] mb-1" style={{ color: MT.muted }}>One donor per line</div>
-          <textarea
-            value={donor}
-            onChange={(e) => setDonor(e.target.value)}
-            rows={3}
-            placeholder={"e.g.\nInnovation Norway\nUSAID"}
-            className="w-full px-3 py-2 rounded-md text-sm outline-none resize-none"
-            style={{ border: `1.5px solid ${MT.hair}`, background: "#fff", color: MT.ink }}
-          />
+          <RepeatableList items={donor} onChange={setDonor} placeholder="e.g. Innovation Norway" />
         </div>
         <div>
           <label className="block text-xs font-semibold mb-1" style={{ color: MT.ink }}>Partners</label>
-          <div className="text-[11px] mb-1" style={{ color: MT.muted }}>One partner per line</div>
-          <textarea
-            value={partners}
-            onChange={(e) => setPartners(e.target.value)}
-            rows={3}
-            placeholder={"e.g.\nIOM\nTerram Pacis"}
-            className="w-full px-3 py-2 rounded-md text-sm outline-none resize-none"
-            style={{ border: `1.5px solid ${MT.hair}`, background: "#fff", color: MT.ink }}
-          />
+          <RepeatableList items={partners} onChange={setPartners} placeholder="e.g. IOM" />
         </div>
       </div>
 
       <div className="mb-3">
         <label className="block text-xs font-semibold mb-1" style={{ color: MT.ink }}>GNDR Members</label>
-        <div className="text-[11px] mb-1" style={{ color: MT.muted }}>One member per line</div>
-        <textarea
-          value={members}
-          onChange={(e) => setMembers(e.target.value)}
-          rows={3}
-          placeholder={"e.g.\nMember organisation A\nMember organisation B"}
-          className="w-full px-3 py-2 rounded-md text-sm outline-none resize-none"
-          style={{ border: `1.5px solid ${MT.hair}`, background: "#fff", color: MT.ink }}
-        />
+        <RepeatableList items={members} onChange={setMembers} placeholder="e.g. Member organisation A" />
       </div>
 
       <div className="grid grid-cols-2 gap-3 mb-4">
@@ -1918,6 +1923,7 @@ function computeRegionStats(projects, activities, activityMeta) {
     if (!stats[region]) stats[region] = { projects: new Set(), activities: new Set(), members: new Set(), donors: new Set(), partners: new Set() };
     return stats[region];
   };
+  Object.keys(MAP_REGIONS).filter((r) => r !== "World").forEach(ensure);
 
   projects.forEach((p) => {
     const regions = new Set(splitList(p.countries).map((c) => REGION_LOOKUP[normCountry(c)]).filter(Boolean));
@@ -1942,21 +1948,79 @@ function computeRegionStats(projects, activities, activityMeta) {
   });
 
   const order = ["Americas", "Africa", "Asia", "Europe", "Oceania"];
-  return order
-    .filter((r) => stats[r])
-    .map((region) => ({
-      region,
-      projects: stats[region].projects.size,
-      activities: stats[region].activities.size,
-      members: stats[region].members.size,
-      donors: stats[region].donors.size,
-      partners: stats[region].partners.size,
-    }));
+  const rows = order.map((region) => ({
+    region,
+    projects: stats[region].projects.size,
+    activities: stats[region].activities.size,
+    members: stats[region].members.size,
+    donors: stats[region].donors.size,
+    partners: stats[region].partners.size,
+  }));
+
+  // Totals used as the % denominator for each metric — the sum across
+  // regions (a project/activity spanning more than one region is counted
+  // in each, so regional percentages can add to over 100%, same as the
+  // per-region counts already do).
+  const totals = {
+    projects: rows.reduce((sum, r) => sum + r.projects, 0),
+    activities: rows.reduce((sum, r) => sum + r.activities, 0),
+    members: rows.reduce((sum, r) => sum + r.members, 0),
+    donors: rows.reduce((sum, r) => sum + r.donors, 0),
+    partners: rows.reduce((sum, r) => sum + r.partners, 0),
+  };
+
+  return { rows, totals };
+}
+
+function computeCountryStats(projects, activities, activityMeta) {
+  const stats = {};
+  const ensure = (country) => {
+    if (!stats[country]) stats[country] = { projects: new Set(), activities: new Set(), members: new Set(), donors: new Set(), partners: new Set() };
+    return stats[country];
+  };
+
+  projects.forEach((p) => {
+    splitList(p.countries).map(normCountry).forEach((country) => {
+      const s = ensure(country);
+      s.projects.add(p.project_id);
+      splitList(p.donor).forEach((d) => s.donors.add(d));
+      splitList(p.partners).forEach((pt) => s.partners.add(pt));
+      splitList(p.members).forEach((m) => s.members.add(m));
+    });
+  });
+
+  activities.forEach((a) => {
+    const meta = activityMeta[a.row];
+    if (!meta?.countries) return;
+    splitList(meta.countries).map(normCountry).forEach((country) => {
+      const s = ensure(country);
+      s.activities.add(a.row);
+      splitList(meta.members).forEach((m) => s.members.add(m));
+    });
+  });
+
+  return Object.keys(stats)
+    .map((country) => ({
+      country,
+      region: REGION_LOOKUP[country] || "—",
+      projects: stats[country].projects.size,
+      activities: stats[country].activities.size,
+      members: stats[country].members.size,
+      donors: stats[country].donors.size,
+      partners: stats[country].partners.size,
+    }))
+    .sort((a, b) => (b.projects + b.activities) - (a.projects + a.activities));
+}
+
+function pct(n, total) {
+  if (!total) return null;
+  return Math.round((n / total) * 1000) / 10;
 }
 
 function RegionalOverview({ projects, activities, activityMeta }) {
-  const rows = useMemo(() => computeRegionStats(projects, activities, activityMeta), [projects, activities, activityMeta]);
-  if (rows.length === 0) return null;
+  const [view, setView] = useState("region"); // region | country
+  const { rows, totals } = useMemo(() => computeRegionStats(projects, activities, activityMeta), [projects, activities, activityMeta]);
+  const countryRows = useMemo(() => computeCountryStats(projects, activities, activityMeta), [projects, activities, activityMeta]);
 
   const statDefs = [
     { key: "projects", label: "Projects" },
@@ -1967,23 +2031,78 @@ function RegionalOverview({ projects, activities, activityMeta }) {
   ];
 
   return (
-    <div className="mb-4">
-      <div className="text-[13px] font-bold mb-2" style={{ color: MT.tealInk, fontFamily: MT.font }}>Regional overview</div>
-      <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(auto-fit, minmax(180px, 1fr))`, fontFamily: MT.font }}>
-        {rows.map((r) => (
-          <div key={r.region} className="rounded-2xl p-4" style={{ border: `1px solid ${MT.hair}`, background: "#fff" }}>
-            <div className="mb-2.5" style={{ fontSize: 15.5, fontWeight: 600, color: MT.teal }}>{r.region}</div>
-            <div className="space-y-1">
-              {statDefs.map((s) => (
-                <div key={s.key} className="flex items-center justify-between">
-                  <span style={{ fontSize: 13, color: MT.muted }}>{s.label}</span>
-                  <span style={{ fontSize: 14, fontWeight: 600, color: MT.tealDark }}>{r[s.key]}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        ))}
+    <div className="mb-4" style={{ fontFamily: MT.font }}>
+      <div className="flex items-center justify-between mb-2">
+        <div className="text-[13px] font-bold" style={{ color: MT.tealInk }}>Overview</div>
+        <div className="flex gap-1.5">
+          {[["region", "By region"], ["country", "By country"]].map(([id, label]) => (
+            <button
+              key={id}
+              onClick={() => setView(id)}
+              className="text-xs font-medium px-3 py-1.5 rounded-full"
+              style={{
+                border: `1px solid ${view === id ? MT.teal : MT.hair}`,
+                background: view === id ? "#E7F2F4" : "#fff",
+                color: view === id ? MT.tealDark : MT.muted,
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
+
+      {view === "region" ? (
+        <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(auto-fit, minmax(180px, 1fr))` }}>
+          {rows.map((r) => (
+            <div key={r.region} className="rounded-2xl p-4" style={{ border: `1px solid ${MT.hair}`, background: "#fff" }}>
+              <div className="mb-2.5" style={{ fontSize: 15.5, fontWeight: 600, color: MT.teal }}>{r.region}</div>
+              <div className="space-y-1.5">
+                {statDefs.map((s) => {
+                  const p = pct(r[s.key], totals[s.key]);
+                  return (
+                    <div key={s.key} className="flex items-center justify-between">
+                      <span style={{ fontSize: 13, color: MT.muted }}>{s.label}</span>
+                      <span style={{ fontSize: 14, fontWeight: 600, color: MT.tealDark }}>
+                        {r[s.key]}{p != null && <span style={{ fontSize: 11.5, fontWeight: 500, color: MT.muted, marginLeft: 5 }}>({p}%)</span>}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        countryRows.length === 0 ? (
+          <p style={{ fontSize: 14, color: MT.muted }}>No countries tagged on any project or activity yet.</p>
+        ) : (
+          <div className="rounded-2xl overflow-hidden" style={{ border: `1px solid ${MT.hair}` }}>
+            <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
+              <thead>
+                <tr style={{ background: "#F4F8F9" }}>
+                  <th className="text-left px-3 py-2 font-semibold" style={{ fontSize: 12.5, color: MT.muted }}>Country</th>
+                  <th className="text-left px-3 py-2 font-semibold" style={{ fontSize: 12.5, color: MT.muted }}>Region</th>
+                  {statDefs.map((s) => (
+                    <th key={s.key} className="text-right px-3 py-2 font-semibold" style={{ fontSize: 12.5, color: MT.muted }}>{s.label}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {countryRows.map((r) => (
+                  <tr key={r.country} style={{ borderTop: `1px solid ${MT.hair}` }}>
+                    <td className="px-3 py-2" style={{ fontSize: 13.5, color: MT.ink, fontWeight: 500 }}>{r.country}</td>
+                    <td className="px-3 py-2" style={{ fontSize: 13, color: MT.muted }}>{r.region}</td>
+                    {statDefs.map((s) => (
+                      <td key={s.key} className="px-3 py-2 text-right" style={{ fontSize: 13.5, color: MT.tealDark, fontWeight: 600 }}>{r[s.key]}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )
+      )}
     </div>
   );
 }
@@ -2025,7 +2144,13 @@ function WorldMap({ projects, activities, activityMeta, identity, onSaveProject 
       .then((topo) => {
         if (cancelled) return;
         const fc = topojson.feature(topo, topo.objects.countries);
-        setFeatures(fc.features);
+        // The general-purpose map datasets we can use here sometimes omit
+        // the smallest Pacific island nations — fill in any of them we have
+        // in our own bundled backup, so long as world-atlas doesn't already
+        // have that country under some name of its own.
+        const have = new Set(fc.features.map((f) => normCountry(f.properties.name)));
+        const extra = WORLD_GEOJSON.features.filter((f) => !have.has(normCountry(f.properties.name)));
+        setFeatures([...fc.features, ...extra]);
       })
       .catch(() => {
         if (cancelled) return;
@@ -2053,13 +2178,9 @@ function WorldMap({ projects, activities, activityMeta, identity, onSaveProject 
     const zoomB = d3.zoom().scaleExtent([1, 14]).translateExtent([[0, 0], [MAP_W, MAP_H]])
       .on("start", () => svg.classed("dragging", true))
       .on("end", () => svg.classed("dragging", false))
-      .on("zoom", (e) => { g.attr("transform", e.transform); relabel(e.transform.k); });
+      .on("zoom", (e) => { g.attr("transform", e.transform); });
     svg.call(zoomB);
     zoomRef.current = zoomB;
-
-    function relabel(k) {
-      g.selectAll(".gm-marker").attr("r", 11 / k);
-    }
 
     g.append("path").attr("d", path({ type: "Sphere" }))
       .attr("fill", "none").attr("stroke", "#C9DADD").attr("stroke-width", 1);
@@ -2095,19 +2216,8 @@ function WorldMap({ projects, activities, activityMeta, identity, onSaveProject 
         if (countriesWithProjects.has(name)) setSelected((s) => (s === name ? null : name));
       });
 
-    countriesWithProjects.forEach((name) => {
-      const f = features.find((x) => normCountry(x.properties.name) === name);
-      if (!f) return;
-      const c = path.centroid(f);
-      g.append("circle").attr("class", "gm-marker").attr("data-name", name)
-        .attr("cx", c[0]).attr("cy", c[1]).attr("r", 11)
-        .attr("fill", "none").attr("stroke", MT.teal).attr("stroke-width", 1.6)
-        .style("vector-effect", "non-scaling-stroke").style("pointer-events", "none");
-    });
-
     if (selectedRef.current) {
       g.selectAll("path.gm-country").attr("fill", (d) => normCountry(d.properties.name) === selectedRef.current ? MT.orange : fillFor(normCountry(d.properties.name)));
-      g.selectAll(".gm-marker").attr("stroke", function () { return this.getAttribute("data-name") === selectedRef.current ? MT.orangeDark : MT.teal; });
     }
   }, [features, countriesWithProjects]);
 
@@ -2119,9 +2229,6 @@ function WorldMap({ projects, activities, activityMeta, identity, onSaveProject 
       const name = normCountry(d.properties.name);
       if (name === selected) return MT.orange;
       return countriesWithProjects.has(name) ? MT.teal : MT.land;
-    });
-    g.selectAll(".gm-marker").attr("stroke", function () {
-      return this.getAttribute("data-name") === selected ? MT.orangeDark : MT.teal;
     });
   }, [selected, countriesWithProjects]);
 
