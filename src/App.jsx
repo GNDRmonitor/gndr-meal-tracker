@@ -622,7 +622,7 @@ function UpdateDrawer({ activity, quarter, existing, onClose, onSave, identity, 
 
 /* ============================== ACTIVITY ROW ============================== */
 
-function TypeSmgBadges({ activity, meta, isAdmin, onSetTypeSmg }) {
+function TypeSmgBadges({ activity, meta, onSetTypeSmg }) {
   const [editing, setEditing] = useState(false);
   const effType = meta?.type || activity.type || "";
   const effSmg = meta?.smg || activity.smg || "";
@@ -635,22 +635,13 @@ function TypeSmgBadges({ activity, meta, isAdmin, onSetTypeSmg }) {
     onSetTypeSmg(activity.row, { smg: order.filter((l) => next.has(l)).join("/") });
   };
 
-  if (!isAdmin) {
-    return (
-      <div className="flex items-center gap-1.5">
-        {effType && <Pill color={C.tealDeep} bg={C.tealTint}>{effType === "Q" ? "Qualitative" : "Numeric"}</Pill>}
-        {effSmg && <Pill color={C.inkSoft} bg={C.lineSoft}>{effSmg}</Pill>}
-      </div>
-    );
-  }
-
   return (
     <div className="relative">
       <button
         onClick={(e) => { e.stopPropagation(); setEditing((v) => !v); }}
         className="flex items-center gap-1.5 px-1.5 py-0.5 rounded-md"
         style={{ border: `1.5px dashed ${C.teal}` }}
-        title="Admin: click to edit Type / S·M·G"
+        title="Click to edit Type / S·M·G"
       >
         {effType ? <Pill color={C.tealDeep} bg={C.tealTint}>{effType === "Q" ? "Qualitative" : "Numeric"}</Pill> : <Pill color={C.muted} bg={C.lineSoft}>Type?</Pill>}
         {effSmg ? <Pill color={C.inkSoft} bg={C.lineSoft}>{effSmg}</Pill> : <Pill color={C.muted} bg={C.lineSoft}>S·M·G?</Pill>}
@@ -803,7 +794,7 @@ function ActivityRow({ activity, updates, onOpenQuarter, expanded, onToggle, ide
                 · with {contributors.join(", ")}
               </span>
             )}
-            <TypeSmgBadges activity={activity} meta={meta} isAdmin={identity?.isAdmin} onSetTypeSmg={onSetTypeSmg} />
+            <TypeSmgBadges activity={activity} meta={meta} onSetTypeSmg={onSetTypeSmg} />
           </div>
         </div>
         <QuarterTrack statuses={statuses} />
@@ -1436,11 +1427,9 @@ function AllActivitiesView({ updates, projects, activityMeta, identity, onSavePr
                       <td className="px-3 py-2 whitespace-nowrap align-top" style={{ color: C.teal }}>{a.output}</td>
                       <td className="px-3 py-2 align-top" style={{ color: C.ink }}>
                         {a.activity}
-                        {identity?.isAdmin && (
-                          <div className="mt-1.5" onClick={(e) => e.stopPropagation()}>
-                            <TypeSmgBadges activity={a} meta={activityMeta[a.row]} isAdmin={identity?.isAdmin} onSetTypeSmg={onSetTypeSmg} />
-                          </div>
-                        )}
+                        <div className="mt-1.5" onClick={(e) => e.stopPropagation()}>
+                          <TypeSmgBadges activity={a} meta={activityMeta[a.row]} onSetTypeSmg={onSetTypeSmg} />
+                        </div>
                       </td>
                       <td className="px-3 py-2 align-top">
                         <OwnerPills owner={a.owner} />
@@ -2287,19 +2276,17 @@ function WorldMap({ projects, activities, activityMeta, identity, onSaveProject 
   return (
     <div style={{ fontFamily: MT.font }}>
       <RegionalOverview projects={projects} activities={activities} activityMeta={activityMeta} />
-      {identity?.isAdmin && (
-        <div className="flex justify-end mb-3">
-          {!showForm && (
-            <button
-              onClick={() => { setEditingProject(null); setShowForm(true); }}
-              className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-md"
-              style={{ background: MT.teal, color: "#fff" }}
-            >
-              <MapPin size={13} /> Add a project
-            </button>
-          )}
-        </div>
-      )}
+      <div className="flex justify-end mb-3">
+        {!showForm && (
+          <button
+            onClick={() => { setEditingProject(null); setShowForm(true); }}
+            className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-md"
+            style={{ background: MT.teal, color: "#fff" }}
+          >
+            <MapPin size={13} /> Add a project
+          </button>
+        )}
+      </div>
       {showForm && (
         <ProjectForm existing={editingProject} onSave={handleSaveProject} onCancel={() => { setShowForm(false); setEditingProject(null); }} />
       )}
@@ -2404,9 +2391,7 @@ function WorldMap({ projects, activities, activityMeta, identity, onSaveProject 
                   <div key={p.project_id} className="rounded-lg mb-2.5" style={{ border: `1px solid ${MT.hair}`, borderLeft: `3px solid ${MT.teal}`, padding: "12px 13px" }}>
                     <div className="flex items-baseline gap-2.5">
                       <b style={{ fontSize: 15.5, color: MT.tealDark, fontWeight: 600 }}>{p.project_name}</b>
-                      {identity?.isAdmin && (
-                        <button onClick={() => { setEditingProject(p); setShowForm(true); }} className="ml-auto" style={{ fontSize: 13, color: MT.teal, textDecoration: "underline" }}>Edit</button>
-                      )}
+                      <button onClick={() => { setEditingProject(p); setShowForm(true); }} className="ml-auto" style={{ fontSize: 13, color: MT.teal, textDecoration: "underline" }}>Edit</button>
                     </div>
                     <div style={{ fontSize: 14, color: MT.muted, marginTop: 4, lineHeight: 1.5 }}>
                       Donor: {p.donor || "—"}<br />Partners: {p.partners || "—"}
@@ -3052,7 +3037,6 @@ export default function App() {
   }, [identity]);
 
   const handleSetActivityTypeSmg = useCallback(async (row, { type, smg }) => {
-    if (!identity?.isAdmin) return;
     setActivityMetaState((prev) => ({ ...prev, [row]: { ...(prev[row] || {}), ...(type !== undefined ? { type } : {}), ...(smg !== undefined ? { smg } : {}) } }));
     await setActivityMeta({ activityRow: row, type, smg, updatedBy: identity.name, updatedByEmail: identity.email });
   }, [identity]);
@@ -3068,7 +3052,6 @@ export default function App() {
   }, [identity]);
 
   const handleSaveProject = useCallback(async (payload) => {
-    if (!identity?.isAdmin) return;
     setProjects((prev) => {
       const idx = prev.findIndex((p) => p.project_id === payload.project_id);
       if (idx === -1) return [...prev, payload];
