@@ -13,6 +13,7 @@ import {
 } from "./storage.js";
 import { renderGoogleSignIn } from "./googleAuth.js";
 import { WORLD_GEOJSON } from "./worldGeoData.js";
+import { GNDR_MEMBERS } from "./membersData.js";
 
 /* ============================== DATA ============================== */
 
@@ -754,7 +755,7 @@ function MembersField({ activity, meta, onSetMembers }) {
           className="absolute z-20 top-full left-0 mt-1 rounded-lg shadow-lg p-2"
           style={{ background: "#fff", border: `1px solid ${C.line}`, width: 260 }}
         >
-          <RepeatableList items={draft} onChange={setDraft} placeholder="Member organisation" />
+          <MemberAutocompleteList items={draft} onChange={setDraft} />
           <button onClick={handleDone} className="w-full text-xs py-1.5 rounded mt-1.5" style={{ background: C.lineSoft, color: C.tealDeep }}>Done</button>
         </div>
       )}
@@ -1746,6 +1747,90 @@ function RepeatableList({ items, onChange, placeholder }) {
   );
 }
 
+// Name -> country, for the small country tag shown once a row matches an
+// exact GNDR member name.
+const MEMBER_COUNTRY = (() => {
+  const map = {};
+  GNDR_MEMBERS.forEach((m) => { map[m.name] = m.country; });
+  return map;
+})();
+
+// Same "+ Add row" / remove pattern as RepeatableList, but each row is a
+// type-ahead against the official GNDR member list (2,000+ orgs) instead of
+// free text — picks the exact org name, and shows its country once matched.
+function MemberAutocompleteList({ items, onChange }) {
+  const list = items.length ? items : [""];
+  const [openIndex, setOpenIndex] = useState(null);
+  const [query, setQuery] = useState("");
+
+  const update = (i, val) => onChange(list.map((v, idx) => (idx === i ? val : v)));
+  const add = () => onChange([...list, ""]);
+  const remove = (i) => onChange(list.length > 1 ? list.filter((_, idx) => idx !== i) : list);
+
+  const matches = (q) => {
+    const term = q.trim().toLowerCase();
+    if (!term) return [];
+    return GNDR_MEMBERS.filter((m) => m.name.toLowerCase().includes(term)).slice(0, 8);
+  };
+
+  return (
+    <div>
+      {list.map((val, i) => {
+        const country = MEMBER_COUNTRY[val];
+        const suggestions = openIndex === i ? matches(query) : [];
+        return (
+          <div key={i} className="mb-1.5">
+            <div className="flex items-center gap-1.5">
+              <div className="relative flex-1">
+                <input
+                  value={openIndex === i ? query : val}
+                  onChange={(e) => { setQuery(e.target.value); update(i, e.target.value); }}
+                  onFocus={() => { setOpenIndex(i); setQuery(val); }}
+                  onBlur={() => setTimeout(() => setOpenIndex((cur) => (cur === i ? null : cur)), 150)}
+                  placeholder="Start typing an organisation name…"
+                  className="w-full px-2.5 py-1.5 rounded-md text-xs outline-none"
+                  style={{ border: `1.5px solid ${MT.hair}`, background: "#fff", color: MT.ink }}
+                />
+                {suggestions.length > 0 && (
+                  <div
+                    className="absolute z-30 top-full left-0 mt-0.5 rounded-md shadow-lg overflow-hidden w-full max-h-48 overflow-y-auto"
+                    style={{ background: "#fff", border: `1px solid ${MT.hair}` }}
+                  >
+                    {suggestions.map((m) => (
+                      <button
+                        key={m.name}
+                        onMouseDown={(e) => { e.preventDefault(); update(i, m.name); setOpenIndex(null); }}
+                        className="w-full text-left px-2.5 py-1.5 text-xs"
+                        style={{ borderBottom: `1px solid ${MT.hair}` }}
+                      >
+                        <div style={{ color: MT.ink }}>{m.name}</div>
+                        <div style={{ color: MT.muted, fontSize: 10.5 }}>{m.country}</div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <button onClick={() => remove(i)} disabled={list.length === 1} style={{ opacity: list.length === 1 ? 0.3 : 1 }}>
+                <X size={13} color="#C2452F" />
+              </button>
+            </div>
+            {country && (
+              <div className="text-[10.5px] mt-0.5 ml-0.5" style={{ color: MT.muted }}>{country}</div>
+            )}
+          </div>
+        );
+      })}
+      <button
+        onClick={add}
+        className="text-xs font-medium px-2.5 py-1 rounded-md"
+        style={{ border: `1.5px solid ${MT.teal}`, color: MT.tealDark, background: "#E7F2F4" }}
+      >
+        + Add row
+      </button>
+    </div>
+  );
+}
+
 function ProjectForm({ existing, onSave, onCancel }) {
   const [name, setName] = useState(existing?.project_name || "");
   const [countries, setCountries] = useState(splitList(existing?.countries));
@@ -1825,7 +1910,7 @@ function ProjectForm({ existing, onSave, onCancel }) {
 
       <div className="mb-3">
         <label className="block text-xs font-semibold mb-1" style={{ color: MT.ink }}>GNDR Members</label>
-        <RepeatableList items={members} onChange={setMembers} placeholder="e.g. Member organisation A" />
+        <MemberAutocompleteList items={members} onChange={setMembers} />
       </div>
 
       <div className="grid grid-cols-2 gap-3 mb-4">
@@ -2395,7 +2480,13 @@ function WorldMap({ projects, activities, activityMeta, identity, onSaveProject 
                     </div>
                     <div style={{ fontSize: 14, color: MT.muted, marginTop: 4, lineHeight: 1.5 }}>
                       Donor: {p.donor || "—"}<br />Partners: {p.partners || "—"}
-                      {p.members && <><br />GNDR Members: {p.members}</>}
+                      {p.members && (
+                        <>
+                          <br />GNDR Members: {splitList(p.members).map((m, i) => (
+                            <span key={m}>{i > 0 && ", "}{m}{MEMBER_COUNTRY[m] ? ` (${MEMBER_COUNTRY[m]})` : ""}</span>
+                          ))}
+                        </>
+                      )}
                     </div>
                     <div className="flex gap-1.5 flex-wrap mt-2">
                       {p.duration && <span style={{ fontSize: 12.5, fontWeight: 600, padding: "6px 9px", borderRadius: 5, background: "#EAF3F4", color: MT.tealDark }}>{p.duration}</span>}
