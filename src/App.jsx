@@ -1831,6 +1831,57 @@ function MemberAutocompleteList({ items, onChange }) {
   );
 }
 
+// Single-cell version of the same type-ahead, for the Indicator dashboard's
+// entry tables — each row there is already added/removed as a whole entry,
+// so only one input (not a repeatable list) is needed per "member" field.
+function MemberAutocompleteInput({ value, onChange }) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState(value || "");
+  const country = MEMBER_COUNTRY[value];
+
+  const matches = (q) => {
+    const term = q.trim().toLowerCase();
+    if (!term) return [];
+    return GNDR_MEMBERS.filter((m) => m.name.toLowerCase().includes(term)).slice(0, 8);
+  };
+  const suggestions = open ? matches(query) : [];
+
+  return (
+    <div className="relative">
+      <input
+        value={open ? query : value || ""}
+        onChange={(e) => { setQuery(e.target.value); onChange(e.target.value); }}
+        onFocus={() => { setOpen(true); setQuery(value || ""); }}
+        onBlur={() => setTimeout(() => setOpen(false), 150)}
+        placeholder="Start typing…"
+        className="w-full px-2 py-1.5 rounded text-xs outline-none"
+        style={{ border: `1.5px solid ${C.line}`, background: C.paper, color: C.ink }}
+      />
+      {suggestions.length > 0 && (
+        <div
+          className="absolute z-30 top-full left-0 mt-0.5 rounded-md shadow-lg overflow-hidden max-h-48 overflow-y-auto"
+          style={{ background: "#fff", border: `1px solid ${C.line}`, width: 220 }}
+        >
+          {suggestions.map((m) => (
+            <button
+              key={m.name}
+              onMouseDown={(e) => { e.preventDefault(); onChange(m.name); setOpen(false); }}
+              className="w-full text-left px-2.5 py-1.5 text-xs"
+              style={{ borderBottom: `1px solid ${C.line}` }}
+            >
+              <div style={{ color: C.ink }}>{m.name}</div>
+              <div style={{ color: C.muted, fontSize: 10.5 }}>{m.country}</div>
+            </button>
+          ))}
+        </div>
+      )}
+      {country && !open && (
+        <div className="text-[10px] mt-0.5" style={{ color: C.muted }}>{country}</div>
+      )}
+    </div>
+  );
+}
+
 function ProjectForm({ existing, onSave, onCancel }) {
   const [name, setName] = useState(existing?.project_name || "");
   const [countries, setCountries] = useState(splitList(existing?.countries));
@@ -2699,12 +2750,19 @@ function IndicatorCard({ si, ind, status, onSave, identity }) {
                   <tr key={i}>
                     {ind.fields.map((f) => (
                       <td key={f.key} className="px-1 py-1">
-                        <input
-                          value={entry[f.key] || ""}
-                          onChange={(ev) => updateEntry(i, f.key, ev.target.value)}
-                          className="w-full px-2 py-1.5 rounded text-xs outline-none"
-                          style={{ border: `1.5px solid ${C.line}`, background: C.paper, color: C.ink }}
-                        />
+                        {f.key === "member" ? (
+                          <MemberAutocompleteInput
+                            value={entry[f.key] || ""}
+                            onChange={(val) => updateEntry(i, f.key, val)}
+                          />
+                        ) : (
+                          <input
+                            value={entry[f.key] || ""}
+                            onChange={(ev) => updateEntry(i, f.key, ev.target.value)}
+                            className="w-full px-2 py-1.5 rounded text-xs outline-none"
+                            style={{ border: `1.5px solid ${C.line}`, background: C.paper, color: C.ink }}
+                          />
+                        )}
                       </td>
                     ))}
                     <td className="px-1">
