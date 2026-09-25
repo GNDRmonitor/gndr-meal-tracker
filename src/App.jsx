@@ -3077,6 +3077,11 @@ export default function App() {
         const savedIdentity = await getIdentity(rememberedEmail);
         if (savedIdentity) {
           setIdentity({ name: savedIdentity.name, email: savedIdentity.email, team: savedIdentity.team, isAdmin: isAdminEmail(savedIdentity.email) });
+          // Re-save on every visit (not just the first sign-in) so Identity
+          // reflects when someone was last actually in the app, not just
+          // when their browser first remembered them. Fire-and-forget —
+          // doesn't block the rest of the app from loading.
+          saveIdentityToSheet({ email: savedIdentity.email, name: savedIdentity.name, team: savedIdentity.team });
         }
       }
       setLoadingIdentity(false);
