@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { ChevronRight, ChevronDown, Circle, CheckCircle2, AlertTriangle, Radio, Target, ClipboardList, LayoutGrid, X, Loader2, Gauge, Download, Repeat, Lock, MapPin, Globe2, Pencil } from "lucide-react";
+import { ChevronRight, ChevronDown, Circle, CheckCircle2, AlertTriangle, Radio, Target, ClipboardList, LayoutGrid, X, Loader2, Gauge, Download, Repeat, Lock, MapPin, Globe2, Pencil, Maximize2 } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell, LabelList } from "recharts";
 import * as d3 from "d3";
 import * as topojson from "topojson-client";
@@ -329,6 +329,81 @@ function BulletText({ text, style, emptyText, className = "text-sm" }) {
   );
 }
 
+// Small "View full text" trigger placed next to a field's label — opens
+// FullTextModal for comfortable reading/editing of long entries.
+function ExpandFieldButton({ onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="inline-flex items-center gap-1 text-xs font-medium"
+      style={{ color: C.teal }}
+      title="View full text"
+    >
+      <Maximize2 size={12} />
+      View full text
+    </button>
+  );
+}
+
+// Full-screen-ish overlay for reading (or, when editable, continuing to
+// write) one long Plan / What happened / Adaptation field without the
+// cramped height of the inline box. Editable mode reuses the exact same
+// bullet-typing handlers as the inline textarea, and both stay in sync
+// because they share the same value/setValue from the parent.
+function FullTextModal({ title, value, setValue, editable, onClose }) {
+  return (
+    <div
+      className="fixed inset-0 z-[70] flex items-center justify-center p-6"
+      style={{ background: "rgba(28,43,43,0.45)" }}
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-2xl max-h-[80vh] flex flex-col rounded-lg overflow-hidden"
+        style={{ background: C.paper }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div
+          className="flex items-center justify-between px-5 py-3.5 shrink-0"
+          style={{ borderBottom: `1px solid ${C.line}` }}
+        >
+          <div className="text-sm font-semibold" style={{ color: C.ink }}>{title}</div>
+          <button onClick={onClose} className="p-1">
+            <X size={18} color={C.inkSoft} />
+          </button>
+        </div>
+        <div className="px-5 py-4 overflow-y-auto flex-1">
+          {editable ? (
+            <textarea
+              autoFocus
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              onKeyDown={(e) => bulletKeyDown(e, value, setValue)}
+              onFocus={(e) => bulletFocus(e, value, setValue)}
+              onBlur={(e) => bulletBlur(value, setValue)}
+              rows={16}
+              placeholder="Press Enter to start a new bullet."
+              className="w-full px-3 py-2.5 rounded-md text-sm outline-none resize-y min-h-[240px]"
+              style={{ border: `1.5px solid ${C.line}`, background: C.paperRaised, color: C.ink }}
+            />
+          ) : (
+            <BulletText text={value} style={{ color: value ? C.ink : C.muted }} emptyText="Not yet filled in by the owner." />
+          )}
+        </div>
+        <div className="px-5 py-3 shrink-0" style={{ borderTop: `1px solid ${C.line}` }}>
+          <button
+            onClick={onClose}
+            className="px-4 py-1.5 rounded-md text-xs font-semibold"
+            style={{ background: C.teal, color: "#fff" }}
+          >
+            Done
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ============================== IDENTITY PICKER ============================== */
 
 function IdentityPicker({ onSelect, loading, error }) {
@@ -466,6 +541,7 @@ function UpdateDrawer({ activity, quarter, existing, onClose, onSave, identity, 
   const [adaptation, setAdaptation] = useState(existing?.adaptation || "");
   const [confidence, setConfidence] = useState(existing?.confidence ?? 6);
   const [saving, setSaving] = useState(false);
+  const [expanded, setExpanded] = useState(null); // null | "plan" | "whatHappened" | "adaptation"
 
   const contributors = splitList(activity.contrib);
   const [myComment, setMyComment] = useState(existing?.contributorComments?.[identity.team] || "");
@@ -493,7 +569,14 @@ function UpdateDrawer({ activity, quarter, existing, onClose, onSave, identity, 
     onClose();
   };
 
+  const expandedFieldProps = {
+    plan: { title: "Plan — what's planned or delivered this quarter", value: plan, setValue: setPlan },
+    whatHappened: { title: "What happened & key observations", value: whatHappened, setValue: setWhatHappened },
+    adaptation: { title: "Adaptation / next change", value: adaptation, setValue: setAdaptation },
+  }[expanded];
+
   return (
+    <>
     <div className="fixed inset-0 z-50 flex justify-end" style={{ background: "rgba(28,43,43,0.35)" }}>
       <div
         className="w-full max-w-lg h-full overflow-y-auto"
@@ -565,9 +648,12 @@ function UpdateDrawer({ activity, quarter, existing, onClose, onSave, identity, 
           )}
 
           <div>
-            <label className="block text-sm font-medium mb-1.5" style={{ color: C.ink }}>
-              Plan — what's planned or delivered this quarter
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-sm font-medium" style={{ color: C.ink }}>
+                Plan — what's planned or delivered this quarter
+              </label>
+              <ExpandFieldButton onClick={() => setExpanded("plan")} />
+            </div>
             {isOwnerMode ? (
               <textarea
                 value={plan}
@@ -577,20 +663,23 @@ function UpdateDrawer({ activity, quarter, existing, onClose, onSave, identity, 
                 onBlur={() => bulletBlur(plan, setPlan)}
                 rows={3}
                 placeholder="The quarter, and what is planned or delivered in it. Press Enter to start a new bullet."
-                className="w-full px-3 py-2 rounded-md text-sm outline-none resize-none"
+                className="w-full px-3 py-2 rounded-md text-sm outline-none resize-y min-h-[76px]"
                 style={{ border: `1.5px solid ${C.line}`, background: C.paperRaised, color: C.ink }}
               />
             ) : (
-              <div className="px-3 py-2 rounded-md" style={{ background: C.lineSoft }}>
+              <div className="px-3 py-2 rounded-md max-h-40 overflow-y-auto" style={{ background: C.lineSoft }}>
                 <BulletText text={plan} style={{ color: plan ? C.ink : C.muted }} emptyText="Not yet filled in by the owner." />
               </div>
             )}
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1.5" style={{ color: C.ink }}>
-              What happened & key observations
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-sm font-medium" style={{ color: C.ink }}>
+                What happened & key observations
+              </label>
+              <ExpandFieldButton onClick={() => setExpanded("whatHappened")} />
+            </div>
             {isOwnerMode ? (
               <textarea
                 value={whatHappened}
@@ -600,20 +689,23 @@ function UpdateDrawer({ activity, quarter, existing, onClose, onSave, identity, 
                 onBlur={() => bulletBlur(whatHappened, setWhatHappened)}
                 rows={3}
                 placeholder="Narrative — filled at quarter-end. Press Enter to start a new bullet."
-                className="w-full px-3 py-2 rounded-md text-sm outline-none resize-none"
+                className="w-full px-3 py-2 rounded-md text-sm outline-none resize-y min-h-[76px]"
                 style={{ border: `1.5px solid ${C.line}`, background: C.paperRaised, color: C.ink }}
               />
             ) : (
-              <div className="px-3 py-2 rounded-md" style={{ background: C.lineSoft }}>
+              <div className="px-3 py-2 rounded-md max-h-40 overflow-y-auto" style={{ background: C.lineSoft }}>
                 <BulletText text={whatHappened} style={{ color: whatHappened ? C.ink : C.muted }} emptyText="Not yet filled in by the owner." />
               </div>
             )}
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1.5" style={{ color: C.ink }}>
-              Adaptation / next change
-            </label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-sm font-medium" style={{ color: C.ink }}>
+                Adaptation / next change
+              </label>
+              <ExpandFieldButton onClick={() => setExpanded("adaptation")} />
+            </div>
             {isOwnerMode ? (
               <textarea
                 value={adaptation}
@@ -623,11 +715,11 @@ function UpdateDrawer({ activity, quarter, existing, onClose, onSave, identity, 
                 onBlur={() => bulletBlur(adaptation, setAdaptation)}
                 rows={2}
                 placeholder="Narrative — filled at quarter-end. Press Enter to start a new bullet."
-                className="w-full px-3 py-2 rounded-md text-sm outline-none resize-none"
+                className="w-full px-3 py-2 rounded-md text-sm outline-none resize-y min-h-[52px]"
                 style={{ border: `1.5px solid ${C.line}`, background: C.paperRaised, color: C.ink }}
               />
             ) : (
-              <div className="px-3 py-2 rounded-md" style={{ background: C.lineSoft }}>
+              <div className="px-3 py-2 rounded-md max-h-40 overflow-y-auto" style={{ background: C.lineSoft }}>
                 <BulletText text={adaptation} style={{ color: adaptation ? C.ink : C.muted }} emptyText="Not yet filled in by the owner." />
               </div>
             )}
@@ -712,6 +804,16 @@ function UpdateDrawer({ activity, quarter, existing, onClose, onSave, identity, 
         </div>
       </div>
     </div>
+    {expandedFieldProps && (
+      <FullTextModal
+        title={expandedFieldProps.title}
+        value={expandedFieldProps.value}
+        setValue={expandedFieldProps.setValue}
+        editable={isOwnerMode}
+        onClose={() => setExpanded(null)}
+      />
+    )}
+    </>
   );
 }
 
@@ -1236,6 +1338,7 @@ function TeamManagementChart({ filteredBySiOnly, ownerFilter, setOwnerFilter }) 
 }
 
 function ActivityDetailModal({ activity, updates, meta, onClose }) {
+  const [expandedHistory, setExpandedHistory] = useState(null); // { title, text } | null
   if (!activity) return null;
   const contributors = splitList(activity.contrib);
   const effType = meta?.type || activity.type || "—";
@@ -1244,6 +1347,7 @@ function ActivityDetailModal({ activity, updates, meta, onClose }) {
   const outputInfo = getOutputInfo(activity.output);
 
   return (
+    <>
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{ background: "rgba(0,0,0,0.4)" }} onClick={onClose}>
       <div
         className="rounded-xl max-w-lg w-full max-h-[85vh] overflow-y-auto"
@@ -1308,20 +1412,29 @@ function ActivityDetailModal({ activity, updates, meta, onClose }) {
                     </div>
                     {u?.plan && (
                       <div className="text-xs mb-1.5" style={{ color: C.inkSoft }}>
-                        <span className="font-semibold">Plan:</span>
-                        <div className="mt-0.5"><BulletText text={u.plan} style={{ color: C.inkSoft }} className="text-xs" /></div>
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold">Plan:</span>
+                          <ExpandFieldButton onClick={() => setExpandedHistory({ title: `${q} · Plan`, text: u.plan })} />
+                        </div>
+                        <div className="mt-0.5 max-h-24 overflow-y-auto"><BulletText text={u.plan} style={{ color: C.inkSoft }} className="text-xs" /></div>
                       </div>
                     )}
                     {u?.whatHappened && (
                       <div className="text-xs mb-1.5" style={{ color: C.inkSoft }}>
-                        <span className="font-semibold">What happened:</span>
-                        <div className="mt-0.5"><BulletText text={u.whatHappened} style={{ color: C.inkSoft }} className="text-xs" /></div>
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold">What happened:</span>
+                          <ExpandFieldButton onClick={() => setExpandedHistory({ title: `${q} · What happened`, text: u.whatHappened })} />
+                        </div>
+                        <div className="mt-0.5 max-h-24 overflow-y-auto"><BulletText text={u.whatHappened} style={{ color: C.inkSoft }} className="text-xs" /></div>
                       </div>
                     )}
                     {u?.adaptation && (
                       <div className="text-xs mb-1.5" style={{ color: C.inkSoft }}>
-                        <span className="font-semibold">Adaptation:</span>
-                        <div className="mt-0.5"><BulletText text={u.adaptation} style={{ color: C.inkSoft }} className="text-xs" /></div>
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold">Adaptation:</span>
+                          <ExpandFieldButton onClick={() => setExpandedHistory({ title: `${q} · Adaptation`, text: u.adaptation })} />
+                        </div>
+                        <div className="mt-0.5 max-h-24 overflow-y-auto"><BulletText text={u.adaptation} style={{ color: C.inkSoft }} className="text-xs" /></div>
                       </div>
                     )}
                     {u?.contributorComments && Object.entries(u.contributorComments).filter(([, v]) => v).length > 0 && (
@@ -1341,6 +1454,15 @@ function ActivityDetailModal({ activity, updates, meta, onClose }) {
         </div>
       </div>
     </div>
+    {expandedHistory && (
+      <FullTextModal
+        title={expandedHistory.title}
+        value={expandedHistory.text}
+        editable={false}
+        onClose={() => setExpandedHistory(null)}
+      />
+    )}
+    </>
   );
 }
 
