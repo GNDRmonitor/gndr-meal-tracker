@@ -244,6 +244,91 @@ function SectionLabel({ children }) {
   );
 }
 
+/* ========================== BULLET-LIST TEXT FIELDS =========================
+   Lets the Plan / What happened / Adaptation quarterly-report fields behave
+   like an Excel bullet list while staying a single plain-text field under the
+   hood (same "\n"-joined string already stored in the sheet — no backend
+   change). Pressing Enter starts a new "• " line; pressing Enter again on an
+   empty bullet ends the list. Read-only views render each line as a bullet.
+*/
+const BULLET = "• ";
+
+function bulletKeyDown(e, value, setValue) {
+  if (e.key !== "Enter") return;
+  e.preventDefault();
+  const ta = e.target;
+  const start = ta.selectionStart;
+  const end = ta.selectionEnd;
+  const before = value.slice(0, start);
+  const after = value.slice(end);
+  const lineStart = before.lastIndexOf("\n") + 1;
+  const currentLine = before.slice(lineStart);
+  let inserted, cursorAt;
+
+  if (currentLine.trim() === "•") {
+    // Empty bullet + Enter: drop the marker and end the list, same as
+    // Word/Google Docs behaviour.
+    const newBefore = before.slice(0, lineStart);
+    setValue(newBefore + after);
+    cursorAt = newBefore.length;
+  } else {
+    inserted = "\n" + BULLET;
+    setValue(before + inserted + after);
+    cursorAt = before.length + inserted.length;
+  }
+  requestAnimationFrame(() => {
+    if (document.activeElement === ta) ta.setSelectionRange(cursorAt, cursorAt);
+  });
+}
+
+function bulletFocus(e, value, setValue) {
+  if (!value) {
+    setValue(BULLET);
+    const ta = e.target;
+    requestAnimationFrame(() => {
+      if (document.activeElement === ta) ta.setSelectionRange(BULLET.length, BULLET.length);
+    });
+  }
+}
+
+function bulletBlur(value, setValue) {
+  // Nothing but an empty bullet marker left behind — clear it rather than
+  // save a stray "•".
+  if (value.trim() === "•") setValue("");
+}
+
+// Safety net for save time: drops any line that's just a bullet marker with
+// no text after it (e.g. the field was focused, auto-prefilled with "• ",
+// then saved before blur could clean it up).
+function cleanBulletText(text) {
+  if (!text) return text;
+  return text
+    .split("\n")
+    .filter((line) => line.replace(/^[•\-*]\s*/, "").trim() !== "")
+    .join("\n");
+}
+
+// Renders a stored "\n"-joined string as a bulleted list. Works whether the
+// text already carries "• " markers (new entries) or not (older entries not
+// yet re-typed with bullets) — a leading marker is stripped so lines never
+// double up.
+function BulletText({ text, style, emptyText, className = "text-sm" }) {
+  const lines = (text || "").split("\n").map((l) => l.trim()).filter(Boolean);
+  if (lines.length === 0) {
+    return emptyText ? <p className={className} style={style}>{emptyText}</p> : null;
+  }
+  return (
+    <ul className="space-y-1">
+      {lines.map((line, i) => (
+        <li key={i} className={`flex gap-1.5 ${className}`} style={style}>
+          <span className="shrink-0">•</span>
+          <span>{line.replace(/^[•\-*]\s*/, "")}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 /* ============================== IDENTITY PICKER ============================== */
 
 function IdentityPicker({ onSelect, loading, error }) {
@@ -391,7 +476,7 @@ function UpdateDrawer({ activity, quarter, existing, onClose, onSave, identity, 
     setSaving(true);
     if (isOwnerMode) {
       await onSave({
-        plan, whatHappened, adaptation, confidence,
+        plan: cleanBulletText(plan), whatHappened: cleanBulletText(whatHappened), adaptation: cleanBulletText(adaptation), confidence,
         contributorComments: existing?.contributorComments || {},
         updatedBy: identity.name, updatedTeam: identity.team,
         updatedAt: new Date().toISOString(),
@@ -487,15 +572,18 @@ function UpdateDrawer({ activity, quarter, existing, onClose, onSave, identity, 
               <textarea
                 value={plan}
                 onChange={(e) => setPlan(e.target.value)}
+                onKeyDown={(e) => bulletKeyDown(e, plan, setPlan)}
+                onFocus={(e) => bulletFocus(e, plan, setPlan)}
+                onBlur={() => bulletBlur(plan, setPlan)}
                 rows={3}
-                placeholder="The quarter, and what is planned or delivered in it."
+                placeholder="The quarter, and what is planned or delivered in it. Press Enter to start a new bullet."
                 className="w-full px-3 py-2 rounded-md text-sm outline-none resize-none"
                 style={{ border: `1.5px solid ${C.line}`, background: C.paperRaised, color: C.ink }}
               />
             ) : (
-              <p className="text-sm px-3 py-2 rounded-md" style={{ background: C.lineSoft, color: plan ? C.ink : C.muted }}>
-                {plan || "Not yet filled in by the owner."}
-              </p>
+              <div className="px-3 py-2 rounded-md" style={{ background: C.lineSoft }}>
+                <BulletText text={plan} style={{ color: plan ? C.ink : C.muted }} emptyText="Not yet filled in by the owner." />
+              </div>
             )}
           </div>
 
@@ -507,15 +595,18 @@ function UpdateDrawer({ activity, quarter, existing, onClose, onSave, identity, 
               <textarea
                 value={whatHappened}
                 onChange={(e) => setWhatHappened(e.target.value)}
+                onKeyDown={(e) => bulletKeyDown(e, whatHappened, setWhatHappened)}
+                onFocus={(e) => bulletFocus(e, whatHappened, setWhatHappened)}
+                onBlur={() => bulletBlur(whatHappened, setWhatHappened)}
                 rows={3}
-                placeholder="Narrative — filled at quarter-end."
+                placeholder="Narrative — filled at quarter-end. Press Enter to start a new bullet."
                 className="w-full px-3 py-2 rounded-md text-sm outline-none resize-none"
                 style={{ border: `1.5px solid ${C.line}`, background: C.paperRaised, color: C.ink }}
               />
             ) : (
-              <p className="text-sm px-3 py-2 rounded-md" style={{ background: C.lineSoft, color: whatHappened ? C.ink : C.muted }}>
-                {whatHappened || "Not yet filled in by the owner."}
-              </p>
+              <div className="px-3 py-2 rounded-md" style={{ background: C.lineSoft }}>
+                <BulletText text={whatHappened} style={{ color: whatHappened ? C.ink : C.muted }} emptyText="Not yet filled in by the owner." />
+              </div>
             )}
           </div>
 
@@ -527,15 +618,18 @@ function UpdateDrawer({ activity, quarter, existing, onClose, onSave, identity, 
               <textarea
                 value={adaptation}
                 onChange={(e) => setAdaptation(e.target.value)}
+                onKeyDown={(e) => bulletKeyDown(e, adaptation, setAdaptation)}
+                onFocus={(e) => bulletFocus(e, adaptation, setAdaptation)}
+                onBlur={() => bulletBlur(adaptation, setAdaptation)}
                 rows={2}
-                placeholder="Narrative — filled at quarter-end."
+                placeholder="Narrative — filled at quarter-end. Press Enter to start a new bullet."
                 className="w-full px-3 py-2 rounded-md text-sm outline-none resize-none"
                 style={{ border: `1.5px solid ${C.line}`, background: C.paperRaised, color: C.ink }}
               />
             ) : (
-              <p className="text-sm px-3 py-2 rounded-md" style={{ background: C.lineSoft, color: adaptation ? C.ink : C.muted }}>
-                {adaptation || "Not yet filled in by the owner."}
-              </p>
+              <div className="px-3 py-2 rounded-md" style={{ background: C.lineSoft }}>
+                <BulletText text={adaptation} style={{ color: adaptation ? C.ink : C.muted }} emptyText="Not yet filled in by the owner." />
+              </div>
             )}
           </div>
 
@@ -1212,9 +1306,24 @@ function ActivityDetailModal({ activity, updates, meta, onClose }) {
                       <span className="text-xs font-bold" style={{ color: C.ink }}>{q}</span>
                       <Pill color={info.color} bg={info.bg}>{u?.confidence != null ? `${u.confidence}/10 · ${info.label}` : info.label}</Pill>
                     </div>
-                    {u?.plan && <div className="text-xs mb-1" style={{ color: C.inkSoft }}><span className="font-semibold">Plan: </span>{u.plan}</div>}
-                    {u?.whatHappened && <div className="text-xs mb-1" style={{ color: C.inkSoft }}><span className="font-semibold">What happened: </span>{u.whatHappened}</div>}
-                    {u?.adaptation && <div className="text-xs mb-1" style={{ color: C.inkSoft }}><span className="font-semibold">Adaptation: </span>{u.adaptation}</div>}
+                    {u?.plan && (
+                      <div className="text-xs mb-1.5" style={{ color: C.inkSoft }}>
+                        <span className="font-semibold">Plan:</span>
+                        <div className="mt-0.5"><BulletText text={u.plan} style={{ color: C.inkSoft }} className="text-xs" /></div>
+                      </div>
+                    )}
+                    {u?.whatHappened && (
+                      <div className="text-xs mb-1.5" style={{ color: C.inkSoft }}>
+                        <span className="font-semibold">What happened:</span>
+                        <div className="mt-0.5"><BulletText text={u.whatHappened} style={{ color: C.inkSoft }} className="text-xs" /></div>
+                      </div>
+                    )}
+                    {u?.adaptation && (
+                      <div className="text-xs mb-1.5" style={{ color: C.inkSoft }}>
+                        <span className="font-semibold">Adaptation:</span>
+                        <div className="mt-0.5"><BulletText text={u.adaptation} style={{ color: C.inkSoft }} className="text-xs" /></div>
+                      </div>
+                    )}
                     {u?.contributorComments && Object.entries(u.contributorComments).filter(([, v]) => v).length > 0 && (
                       <div className="text-xs mt-1.5 pt-1.5" style={{ borderTop: `1px solid ${C.lineSoft}` }}>
                         <span className="font-semibold" style={{ color: C.muted }}>Contributor comments:</span>
