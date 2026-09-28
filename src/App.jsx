@@ -541,19 +541,27 @@ function UpdateDrawer({ activity, quarter, existing, onClose, onSave, identity, 
   const [whatHappened, setWhatHappened] = useState(existing?.whatHappened || "");
   const [adaptation, setAdaptation] = useState(existing?.adaptation || "");
   const [confidence, setConfidence] = useState(existing?.confidence ?? 6);
+  // The slider needs *some* numeric position to render at, so it starts at 6
+  // when nothing's been reported yet — but that's just a display default,
+  // not a real answer. We only track it as "reported" once the owner
+  // actually moves the slider (or it already had a saved value), so saving
+  // an unrelated field (like Plan) never silently writes that 6 to the
+  // sheet over a confidence that was deliberately left blank.
+  const [confidenceTouched, setConfidenceTouched] = useState(existing?.confidence != null);
   const [saving, setSaving] = useState(false);
   const [expanded, setExpanded] = useState(null); // null | "plan" | "whatHappened" | "adaptation"
 
   const contributors = splitList(activity.contrib);
   const [myComment, setMyComment] = useState(existing?.contributorComments?.[identity.team] || "");
 
-  const info = confidenceInfo(confidence);
+  const info = confidenceInfo(confidenceTouched ? confidence : null);
 
   const handleSave = async () => {
     setSaving(true);
     if (isOwnerMode) {
       await onSave({
-        plan: cleanBulletText(plan), whatHappened: cleanBulletText(whatHappened), adaptation: cleanBulletText(adaptation), confidence,
+        plan: cleanBulletText(plan), whatHappened: cleanBulletText(whatHappened), adaptation: cleanBulletText(adaptation),
+        confidence: confidenceTouched ? confidence : (existing?.confidence ?? null),
         contributorComments: existing?.contributorComments || {},
         updatedBy: identity.name, updatedTeam: identity.team,
         updatedAt: new Date().toISOString(),
@@ -732,7 +740,7 @@ function UpdateDrawer({ activity, quarter, existing, onClose, onSave, identity, 
                 Confidence the annual target will be met
               </label>
               <Pill color={info.color} bg={info.bg}>
-                {confidence}/10 · {info.label}
+                {confidenceTouched ? `${confidence}/10 · ${info.label}` : info.label}
               </Pill>
             </div>
             {isOwnerMode ? (
@@ -742,7 +750,7 @@ function UpdateDrawer({ activity, quarter, existing, onClose, onSave, identity, 
                   min={1}
                   max={10}
                   value={confidence}
-                  onChange={(e) => setConfidence(Number(e.target.value))}
+                  onChange={(e) => { setConfidence(Number(e.target.value)); setConfidenceTouched(true); }}
                   className="w-full"
                   style={{ accentColor: info.color }}
                 />
@@ -750,10 +758,15 @@ function UpdateDrawer({ activity, quarter, existing, onClose, onSave, identity, 
                   <span>1 · Off track</span>
                   <span>10 · Certain</span>
                 </div>
+                {!confidenceTouched && (
+                  <p className="text-xs mt-1.5" style={{ color: C.muted }}>
+                    Not yet reported — move the slider to set this quarter's confidence. Leaving it alone (even after saving other fields) keeps it unreported.
+                  </p>
+                )}
               </>
             ) : (
               <div className="h-1.5 rounded-full" style={{ background: C.lineSoft }}>
-                <div className="h-1.5 rounded-full" style={{ width: `${confidence * 10}%`, background: info.color }} />
+                <div className="h-1.5 rounded-full" style={{ width: confidenceTouched ? `${confidence * 10}%` : "0%", background: info.color }} />
               </div>
             )}
           </div>
