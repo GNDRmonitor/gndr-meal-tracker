@@ -171,6 +171,15 @@ const C = {
   amberBrandTint: "#FDF1DC",
   green: "#3F9142",
   greenBg: "#E5F1E5",
+  // "Moderate" and "Achieved" are both good-news tiers either side of "On
+  // track", so they get their own shades within the same green family
+  // (lighter for Moderate, deeper for Achieved) instead of sharing a color
+  // with another tier — greenLight used to be identical to amber/At risk,
+  // which read as the same status at a glance.
+  greenLight: "#5C9C57",
+  greenLightBg: "#EDF6EB",
+  greenDeep: "#1F6B3A",
+  greenDeepBg: "#DCEBDD",
   amber: "#C97C00",
   amberBg: "#FBEBD0",
   red: "#C2452F",
@@ -179,12 +188,12 @@ const C = {
 };
 
 function confidenceInfo(v) {
-  if (v == null) return { label: "Not yet reported", color: C.muted, bg: "#EDE9DD" };
+  if (v == null) return { label: "Not yet reported", color: C.muted, bg: C.lineSoft };
   if (v <= 3) return { label: "Off track", color: C.red, bg: C.redBg };
   if (v <= 5) return { label: "At risk", color: C.amber, bg: C.amberBg };
-  if (v <= 7) return { label: "Moderate", color: C.amber, bg: C.amberBg };
+  if (v <= 7) return { label: "Moderate", color: C.greenLight, bg: C.greenLightBg };
   if (v <= 9) return { label: "On track", color: C.green, bg: C.greenBg };
-  return { label: "Achieved", color: C.green, bg: C.greenBg };
+  return { label: "Achieved", color: C.greenDeep, bg: C.greenDeepBg };
 }
 
 /* ============================== SMALL UI PIECES ============================== */
@@ -579,7 +588,7 @@ function UpdateDrawer({ activity, quarter, existing, onClose, onSave, identity, 
   };
 
   const expandedFieldProps = {
-    plan: { title: "Plan — what's planned or delivered this quarter", value: plan, setValue: setPlan },
+    plan: { title: "What's planned", value: plan, setValue: setPlan },
     whatHappened: { title: "What happened & key observations", value: whatHappened, setValue: setWhatHappened },
     adaptation: { title: "Adaptation / next change", value: adaptation, setValue: setAdaptation },
   }[expanded];
@@ -659,7 +668,7 @@ function UpdateDrawer({ activity, quarter, existing, onClose, onSave, identity, 
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <label className="text-sm font-medium" style={{ color: C.ink }}>
-                Plan — what's planned or delivered this quarter
+                What's planned
               </label>
               <ExpandFieldButton onClick={() => setExpanded("plan")} />
             </div>
@@ -737,7 +746,7 @@ function UpdateDrawer({ activity, quarter, existing, onClose, onSave, identity, 
           <div>
             <div className="flex items-center justify-between mb-1.5">
               <label className="text-sm font-medium" style={{ color: C.ink }}>
-                Confidence the annual target will be met
+                Confidence that this quarter's activities will contribute to the annual target
               </label>
               <Pill color={info.color} bg={info.bg}>
                 {confidenceTouched ? `${confidence}/10 · ${info.label}` : info.label}
@@ -1248,13 +1257,16 @@ function latestConfidence(rowUpdates) {
   return latestConf;
 }
 
+// Same palette as confidenceInfo() — kept in sync with it by referencing the
+// same C tokens rather than duplicating hex values, since this chart's
+// buckets are built from confidenceInfo(...).label (see statusCounts below).
 const STATUS_BUCKETS = [
-  { label: "Not yet reported", color: "#8A8F91", bg: "#EDE9DD" },
-  { label: "Off track", color: "#C2452F", bg: "#F6E1DB" },
-  { label: "At risk", color: "#C97C00", bg: "#FBEBD0" },
-  { label: "Moderate", color: "#C97C00", bg: "#FBEBD0" },
-  { label: "On track", color: "#3F9142", bg: "#E5F1E5" },
-  { label: "Achieved", color: "#3F9142", bg: "#E5F1E5" },
+  { label: "Not yet reported", color: C.muted, bg: C.lineSoft },
+  { label: "Off track", color: C.red, bg: C.redBg },
+  { label: "At risk", color: C.amber, bg: C.amberBg },
+  { label: "Moderate", color: C.greenLight, bg: C.greenLightBg },
+  { label: "On track", color: C.green, bg: C.greenBg },
+  { label: "Achieved", color: C.greenDeep, bg: C.greenDeepBg },
 ];
 
 function QuarterProgressCards({ updates }) {
