@@ -169,21 +169,21 @@ const C = {
   tealTint: "#E3F3F6",
   amberBrand: "#F59C00",
   amberBrandTint: "#FDF1DC",
-  green: "#3F9142",
-  greenBg: "#E5F1E5",
+  green: "#2EB774",
+  greenBg: "#E2F5EC",
   // "Moderate" and "Achieved" are both good-news tiers either side of "On
   // track", so they get their own shades within the same green family
   // (lighter for Moderate, deeper for Achieved) instead of sharing a color
   // with another tier — greenLight used to be identical to amber/At risk,
   // which read as the same status at a glance.
-  greenLight: "#5C9C57",
-  greenLightBg: "#EDF6EB",
-  greenDeep: "#1F6B3A",
-  greenDeepBg: "#DCEBDD",
-  amber: "#C97C00",
-  amberBg: "#FBEBD0",
-  red: "#C2452F",
-  redBg: "#F6E1DB",
+  greenLight: "#41DC8E",
+  greenLightBg: "#E4FAEF",
+  greenDeep: "#198450",
+  greenDeepBg: "#DFEEE6",
+  amber: "#E85D04",
+  amberBg: "#FCE8DC",
+  red: "#D00000",
+  redBg: "#F8DBDB",
   muted: "#8A8F91",
 };
 
