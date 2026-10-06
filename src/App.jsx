@@ -17,6 +17,20 @@ import { GNDR_MEMBERS } from "./membersData.js";
 
 /* ============================== DATA ============================== */
 
+// Optional fixed, read-only note attached to an activity (the "note" field
+// in ACTIVITIES). Renders nothing for activities without one.
+function ActivityNote({ activity }) {
+  if (!activity?.note) return null;
+  return (
+    <div
+      className="text-xs leading-relaxed mt-1.5 pl-2.5"
+      style={{ color: "#5F6466", borderLeft: "2px solid #C9CDCF" }}
+    >
+      <span className="font-semibold">Note: </span>{activity.note}
+    </div>
+  );
+}
+
 const ACTIVITIES = [
   {row:3,si:"SI 1.1",output:"Output 1.1.1",activity:"Collect community practices, case studies and member/community-led stories from GNDR projects (for documentation and sharing)",owner:"Programmes",contrib:"FRIMCO",type:null,smg:null},
   {row:4,si:"SI 1.1",output:"Output 1.1.2",activity:"Produce the LLAA (Locally-Led Anticipatory Action) Cookbook — practical guidance drawn from members’ practice",owner:"Regional Lead (Asia & Europe)",contrib:"Programmes, FRIMCO",type:null,smg:null},
@@ -33,8 +47,7 @@ const ACTIVITIES = [
   {row:14,si:"SI 1.1",output:"Output 1.1.3",activity:"Deliver nature-based solutions under the Pacific Circle project (Tonga & Kiribati)",owner:"Programmes",contrib:"Regional Leads, FRIMCO, Operations, Policy",type:"N",smg:"S/M"},
   {row:15,si:"SI 1.2",output:"Output 1.2.1",activity:"Conduct participatory needs and baseline assessments under the Kiwa project",owner:"Programmes",contrib:"",type:null,smg:null},
   {row:16,si:"SI 1.2",output:"Output 1.2.1",activity:"Conduct needs assessment under the Climate-Smart Landslide Detection project (Kyrgyzstan)",owner:"Programmes",contrib:"",type:null,smg:null},
-  {row:17,si:"SI 1.2",output:"Output 1.2.1",activity:"Develop the new iteration of Views from the Frontline (VFL) — partnership building, fundraising, programme design and the VFL platform",owner:"FRIMCO + Programmes",contrib:"Regional Leads, Operations, Policy",type:"Q",smg:"S/M"},
-  {row:18,si:"SI 1.2",output:"Output 1.2.2",activity:"Share REAP system-mapping evidence into the REAP partnership",owner:"FRIMCO",contrib:"Policy",type:null,smg:null},
+  {row:18,si:"SI 1.2",output:"Output 1.2.2",activity:"Develop and validate the REAP systems-mapping initiative, and build new partnerships and collaborations to act on it",owner:"FRIMCO",contrib:"Policy",type:null,smg:null},
   {row:19,si:"SI 1.2",output:"Output 1.2.3",activity:"Produce policy briefs for COP31",owner:"Policy",contrib:"Programmes, Membership Engagement, Regional Leads, FRIMCO",type:"N",smg:"S/M/G"},
   {row:20,si:"SI 1.2",output:"Output 1.2.3",activity:"Contribute member evidence and positions to PPED discussions",owner:"Policy",contrib:"Regional Leads, FRIMCO",type:null,smg:null},
   {row:21,si:"SI 1.2",output:"Output 1.2.3",activity:"Prepare and present evidence, summaries and presentations at global and regional forums",owner:"Policy",contrib:"Regional Leads, FRIMCO, Programmes",type:null,smg:null},
@@ -43,7 +56,7 @@ const ACTIVITIES = [
   {row:74,si:"SI 2.1",output:"Output 2.1.1",activity:"Support regionalisation of the Global Strategy 2026–2030 (regional work plans and cross-exchange workshops)",owner:"Regional Lead (Americas & Caribbean)",contrib:"Membership Engagement, FRIMCO",type:"N",smg:"S/M"},
   {row:75,si:"SI 2.1",output:"Output 2.1.1",activity:"Support regionalisation of the Global Strategy 2026–2030 (regional work plans and cross-exchange workshops)",owner:"Regional Lead (Asia & Europe)",contrib:"Membership Engagement, FRIMCO",type:"N",smg:"S/M"},
   {row:76,si:"SI 2.1",output:"Output 2.1.1",activity:"Support regionalisation of the Global Strategy 2026–2030 (regional work plans and cross-exchange workshops)",owner:"Regional Lead (Africa & West Asia)",contrib:"Membership Engagement, FRIMCO",type:"N",smg:"S/M"},
-  {row:25,si:"SI 2.1",output:"Output 2.1.1",activity:"Apply REAP systems-mapping practices with members (secondary contribution to Output 1.2.2)",owner:"FRIMCO",contrib:"",type:null,smg:null},
+  {row:25,si:"SI 2.1",output:"Output 2.1.1",activity:"Apply systems-mapping with members to analyse their DRR ecosystems, building on the REAP exercise (secondary contribution to Output 1.2.2)",owner:"FRIMCO",contrib:"",type:null,smg:null},
   {row:26,si:"SI 2.1",output:"Output 2.1.2",activity:"Local Leadership Academy — member-led webinars & learning exchanges, incl. Peru replication (6 member-led webinars / 300 members + 3 NFP webinars; in-house trainers, topics TBD)",owner:"Membership Engagement",contrib:"Regional Leads, Policy, Programmes, FRIMCO",type:null,smg:null},
   {row:27,si:"SI 2.1",output:"Output 2.1.3",activity:"Locally-led delivery - Pre-Evacuation Platform (LAC)",owner:"Regional Lead (Americas & Caribbean)",contrib:"Programmes",type:null,smg:null},
   {row:28,si:"SI 2.2",output:"Output 2.2.1",activity:"SEM and PPED engagement (4 NGO constituency meetings for SEM facilitated, with monthly SEM advisory group support in 2026-27)",owner:"Policy",contrib:"Regional Leads",type:null,smg:null},
@@ -51,12 +64,11 @@ const ACTIVITIES = [
   {row:30,si:"SI 2.2",output:"Output 2.2.2",activity:"Collaborate with UNDRR (SEM, Sendai and post-Sendai) to advance shared advocacy positions",owner:"Policy",contrib:"Regional Leads",type:null,smg:null},
   {row:31,si:"SI 2.2",output:"Output 2.2.2",activity:"Engage in UNFCCC SB64 and COP31 to advance shared advocacy positions",owner:"Policy",contrib:"Regional Leads, FRIMCO",type:null,smg:null},
   {row:32,si:"SI 2.2",output:"Output 2.2.2",activity:"Engage in EU, South Asia, Africa and LAC regional policy forums to advance shared advocacy positions",owner:"Policy",contrib:"Regional Leads, FRIMCO",type:null,smg:null},
-  {row:33,si:"SI 2.2",output:"Output 2.2.2",activity:"Profile GNDR in non-DRR spaces (broadening reach and influence)",owner:"FRIMCO",contrib:"Policy, Regional Leads",type:"N",smg:"S/M/G"},
+  {row:33,si:"SI 2.2",output:"Output 2.2.2",activity:"Profile and position GNDR in adjacent (non-DRR) strategic spaces",note:"Adjacent agendas where GNDR is active but can be recognised for more than DRR: climate (COPs), early action (REAP), development/localisation and civic space (e.g. Concord). We can target 2+ spaces where GNDR contributes evidence or shapes the conversation; specific priority spaces to be agreed in a planning discussion.",owner:"FRIMCO",contrib:"Policy, Regional Leads",type:"N",smg:"S/M/G"},
   {row:34,si:"SI 2.2",output:"Output 2.2.2",activity:"Engage with the REAP board and its policy work",owner:"ED + Policy",contrib:"FRIMCO, Programmes, Regional Leads",type:null,smg:null},
   {row:35,si:"SI 2.2",output:"Output 2.2.2",activity:"Engage in SOFF processes and with Concord and Bond UK",owner:"ED",contrib:"Policy, Programmes",type:null,smg:null},
   {row:36,si:"SI 2.2",output:"Output 2.2.3",activity:"Use disaster risk financing research findings in advocacy",owner:"Policy",contrib:"FRIMCO, Programmes",type:null,smg:null},
-  {row:37,si:"SI 2.2",output:"Output 2.2.3",activity:"Engage multilateral and financing actors on trust-based financing",owner:"FRIMCO",contrib:"ED, Regional Leads, Programmes, Policy",type:null,smg:null},
-  {row:38,si:"SI 2.2",output:"Output 2.2.3",activity:"Give Us One Day campaign as the advocacy ask for trust-based EWS financing (co-led with REAP)",owner:"FRIMCO",contrib:"Policy, Programmes, Regional Leads",type:"Q",smg:"S/G"},
+  {row:37,si:"SI 2.2",output:"Output 2.2.3",activity:"Advocate to donors and financing institutions for more direct and flexible funding of locally led DRR",owner:"FRIMCO",contrib:"ED, Regional Leads, Programmes, Policy",type:null,smg:null},
   {row:39,si:"SI 2.2",output:"Output 2.2.3",activity:"Raise visibility on IDDRR, DRR financing and women in DRR (webinars and campaigns)",owner:"Policy",contrib:"FRIMCO, Programmes, Regional Leads",type:"N",smg:"S/M/G"},
   {row:40,si:"SI 3.1",output:"Output 3.1.1",activity:"Launch the new strategy and deliver supporting strategic communications",owner:"FRIMCO",contrib:"",type:"Q",smg:"S/M/G"},
   {row:41,si:"SI 3.1",output:"Output 3.1.1",activity:"Produce member- and community-led storytelling that articulates GNDR’s identity and value",owner:"FRIMCO",contrib:"Regional Leads",type:"N",smg:"S/M/G"},
@@ -75,15 +87,16 @@ const ACTIVITIES = [
   {row:55,si:"SI 3.1",output:"Output 3.1.4",activity:"Reactivate the Risk Drivers Working Groups",owner:"Risk Drivers Lead",contrib:"Regional Leads, Programmes, Membership Engagement",type:null,smg:null},
   {row:56,si:"SI 3.1",output:"Output 3.1.4",activity:"Enable thematic collaboration between members through the Community Platform",owner:"Membership Engagement",contrib:"Risk Drivers Lead, Programmes, Policy",type:null,smg:null},
   {row:57,si:"SI 3.1",output:"Output 3.1.4",activity:"Strengthen mechanisms for solidarity and mutual support between members",owner:"Membership Engagement",contrib:"Regional Leads",type:null,smg:null},
-  {row:58,si:"SI 3.2",output:"Output 3.2.1",activity:"Build new strategic partnerships and steward existing donors",owner:"FRIMCO",contrib:"ED, Programmes, Policy, Regional Leads",type:"N",smg:"S/G"},
+  {row:58,si:"SI 3.2",output:"Output 3.2.1",activity:"Build new strategic partnerships",owner:"FRIMCO",contrib:"ED, Programmes, Policy, Regional Leads",type:"N",smg:"S/G"},
   {row:59,si:"SI 3.2",output:"Output 3.2.1",activity:"Develop the Foresight Fund for 2027 launch",owner:"FRIMCO",contrib:"ED, Programmes, Policy, Regional Leads",type:"Q",smg:"S/G"},
+  {row:17,si:"SI 3.2",output:"Output 3.2.1",activity:"Develop the new iteration of Views from the Frontline (VFL) — partnership building, fundraising, programme design and the VFL platform",owner:"FRIMCO + Programmes",contrib:"Regional Leads, Operations, Policy",type:"Q",smg:"S/M"},
   {row:60,si:"SI 3.2",output:"Output 3.2.1",activity:"Strengthen fundraising systems and policies",owner:"FRIMCO",contrib:"",type:"Q",smg:"S/G"},
-  {row:61,si:"SI 3.2",output:"Output 3.2.1",activity:"Fundraising for Give Us One Day funding mechanism (co-led with REAP)",owner:"FRIMCO",contrib:"ED, Programmes, Policy, Regional Leads",type:null,smg:null},
-  {row:62,si:"SI 3.2",output:"Output 3.2.2",activity:"Run regional calls to activate fundraising, storytelling and impact",owner:"FRIMCO",contrib:"Regional Leads, Programmes",type:"N",smg:"S/M"},
+  {row:77,si:"SI 3.2",output:"Output 3.2.1",activity:"Steward existing institutional and foundation donors (Sida, SDC, L’Oréal Foundation, LRF and others)",owner:"FRIMCO",contrib:"ED, Programmes, Policy, Regional Leads",type:null,smg:null},
+  {row:78,si:"SI 3.2",output:"Output 3.2.1",activity:"Raise core, network or unrestricted funding for the network through bids, foundation proposals and regional fundraising",owner:"FRIMCO",contrib:"ED, Programmes, Policy, Regional Leads",type:null,smg:null},
+  {row:62,si:"SI 3.2",output:"Output 3.2.2",activity:"Run regional calls with NFPs/RAGs to activate fundraising and partnership building",owner:"FRIMCO",contrib:"Regional Leads, Programmes",type:"N",smg:"S/M"},
   {row:63,si:"SI 3.2",output:"Output 3.2.2",activity:"Document member fundraising contributions through shared reporting",owner:"FRIMCO",contrib:"",type:null,smg:null},
   {row:64,si:"SI 3.2",output:"Output 3.2.3",activity:"Operationalise the network-level MEAL framework, including baseline data collection",owner:"FRIMCO",contrib:"Programmes, Policy, Regional Leads",type:null,smg:null},
   {row:65,si:"SI 3.2",output:"Output 3.2.3",activity:"Develop data infrastructure, a 3-year financial (scenario) model and the Strategic Coverage Table",owner:"Operations",contrib:"ED, FRIMCO",type:null,smg:null},
-  {row:66,si:"SI 3.2",output:"Output 3.2.3",activity:"Integrate collaboration metrics into donor reporting",owner:"FRIMCO",contrib:"",type:null,smg:null},
   {row:67,si:"SI 3.2",output:"Output 3.2.4",activity:"Strengthen governance and financial-management systems",owner:"ED",contrib:"Operations",type:"Q",smg:"S/G"},
   {row:68,si:"SI 3.2",output:"Output 3.2.4",activity:"Complete audit and compliance requirements",owner:"Operations",contrib:"",type:null,smg:null},
   {row:69,si:"SI 3.2",output:"Output 3.2.4",activity:"Strengthen risk management and business continuity",owner:"Operations",contrib:"ED, FRIMCO, Programmes, Policy, Regional Leads",type:null,smg:null},
@@ -109,7 +122,7 @@ const OUTPUTS = [
   {id:"3.1.2",goal:"Goal 3",si:"SI 3.1 — Strengthening the GNDR identity and member experience",short:"Inclusive governance & representation",y1:"Approximately 12 RAG meetings (4 per region) and 28 National Coordination Meetings supported in 2026-27, with NFPs mobilised; 12 Board Working Group meetings organised; Global Board performance KPIs implemented.",y24:"Outcome milestone: Governance meeting participation and leadership sustained annually through 2030, disaggregated by region, gender, age, disability and organisational type, with at least 60% of governance roles reflecting diverse representation."},
   {id:"3.1.3",goal:"Goal 3",si:"SI 3.1 — Strengthening the GNDR identity and member experience",short:"Member engagement & feedback mechanisms",y1:"Community Platform refreshed and adopted (at least 6 improvements), with post-Summit member-data update and at least 50% expertise-mapping coverage; annual member survey redesigned (shorter, 3+ languages) and analysed in 2026-27.",y24:"Outcome milestone: Annual member survey conducted and acted upon; at least 70% of active members have updated profiles or expertise data by 2030; platform engagement increases annually from the 2027 baseline."},
   {id:"3.1.4",goal:"Goal 3",si:"SI 3.1 — Strengthening the GNDR identity and member experience",short:"Connection, solidarity & mutual support",y1:"Network map live and publicly accessible, with evidence of external use; 4 Risk Drivers Working Groups reactivated with at least 12 meetings and 300 members participating; participatory storytelling approach scoped and piloted in at least 1 region.",y24:"Outcome milestone: Two Global Summits convened; four Risk Driver Groups maintained with at least 500 participating members; and at least 24 regional or thematic peer-learning and solidarity exchanges facilitated by 2030."},
-  {id:"3.2.1",goal:"Goal 3",si:"SI 3.2 — Ensuring a resilient and sustainable network",short:"Funding partnerships diversified",y1:"5-7 strategically aligned multi-year partnerships secured (20% unrestricted income); Foresight Fund governance approved with 2 anchor partners secured toward a 5-6 foundation target by 2027; progress tracked toward the $28M 'Give Us One Day' ask.",y24:"Outcome milestone: At least 5 additional multi-year strategic funding partnerships secured during 2027-30, bringing the cumulative total to 10-12 by 2030; the Foresight Fund reaches its full 5-6 foundation-partner target, up from the 2 anchors secured in Year 1."},
+  {id:"3.2.1",goal:"Goal 3",si:"SI 3.2 — Ensuring a resilient and sustainable network",short:"Funding partnerships diversified",y1:"5-7 strategically aligned multi-year partnerships secured (20% unrestricted income); Foresight Fund governance approved with 2 anchor partners secured toward a 5-6 foundation target by 2027; progress tracked toward the $28M 'Give Us One Day' ask; VFL Concept note socialised (methodology and ToC developed) and funding & partnerships cultivated; VFL global digital platform and roll-out readiness reviewed.",y24:"Outcome milestone: At least 5 additional multi-year strategic funding partnerships secured during 2027-30, bringing the cumulative total to 10-12 by 2030; the Foresight Fund reaches its full 5-6 foundation-partner target, up from the 2 anchors secured in Year 1."},
   {id:"3.2.2",goal:"Goal 3",si:"SI 3.2 — Ensuring a resilient and sustainable network",short:"Members connected to funding opportunities",y1:"13 regional calls delivered to activate fundraising, storytelling and impact reporting across NFPs/RAGs; Go/No-Go policy and Fundraising Strategy approved in 2026-27.",y24:"Outcome milestone: At least 100 members connected to relevant funding, consortium or partnership opportunities by 2030, with the value and outcomes of successful opportunities tracked."},
   {id:"3.2.3",goal:"Goal 3",si:"SI 3.2 — Ensuring a resilient and sustainable network",short:"GNDR value evidenced for accountability",y1:"2026-30 MEAL framework documented, staff trained and in active use; Strategic Coverage Table and 3-year financial model populated and reviewed; at least 50 member contributions documented (aspirational); collaboration metrics included in 3+ donor reports.",y24:"Outcome milestone: Annual strategy performance reports produced, including member contribution, benefit, influence and collaboration data; at least 20 substantiated stories of network-level change documented by 2030."},
   {id:"3.2.4",goal:"Goal 3",si:"SI 3.2 — Ensuring a resilient and sustainable network",short:"Institutional systems strengthened",y1:"Clean audit and statutory accounts delivered on time; policies and Risk Register updated; staffing gaps filled within 3 months; Staff Wellbeing & Workload survey conducted; Speak Up channel and safeguarding/manager training in place.",y24:"Outcome milestone: Clean annual audits and statutory compliance maintained; key institutional policies and risk systems reviewed annually; staff wellbeing, safeguarding and operational capacity monitored and improved."},
@@ -612,6 +625,7 @@ function UpdateDrawer({ activity, quarter, existing, onClose, onSave, identity, 
             <div className="text-base font-medium leading-snug" style={{ color: C.ink }}>
               {activity.activity}
             </div>
+            <ActivityNote activity={activity} />
           </div>
           <button onClick={onClose} className="p-1 shrink-0 ml-3">
             <X size={20} color={C.inkSoft} />
@@ -1005,6 +1019,7 @@ function ActivityRow({ activity, updates, onOpenQuarter, expanded, onToggle, ide
           <div className="text-sm leading-snug" style={{ color: C.ink }}>
             {activity.activity}
           </div>
+          <ActivityNote activity={activity} />
           <div className="flex items-center flex-wrap gap-2 mt-1.5">
             <span className="text-xs" style={{ color: C.muted }}>
               {activity.output}{outputInfo ? ` — ${outputInfo.short}` : ""}
@@ -1386,6 +1401,7 @@ function ActivityDetailModal({ activity, updates, meta, onClose }) {
               {activity.output}{outputInfo ? ` — ${outputInfo.short}` : ""} · {activity.si}
             </div>
             <div className="text-base font-bold" style={{ color: C.ink }}>{activity.activity}</div>
+            <ActivityNote activity={activity} />
             {outputInfo?.y1 && (
               <div
                 className="text-xs leading-relaxed mt-2 px-3 py-2 rounded-md"
