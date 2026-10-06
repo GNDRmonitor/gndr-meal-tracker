@@ -43,7 +43,7 @@ const ACTIVITIES = [
   {row:10,si:"SI 1.1",output:"Output 1.1.3",activity:"Capacity building of local actors on early warnings and early action — Nepal & Ethiopia (7 communities)",owner:"Programmes",contrib:"",type:null,smg:null},
   {row:11,si:"SI 1.1",output:"Output 1.1.3",activity:"Deliver the Harnessing Technology for Climate-Smart Landslide Detection project — Kyrgyzstan",owner:"Programmes",contrib:"Regional Leads, FRIMCO, Operations, Policy",type:"N",smg:"S/M"},
   {row:12,si:"SI 1.1",output:"Output 1.1.3",activity:"Run community surveys and consultations in 5 communities (needs and feasibility assessment)",owner:"Programmes",contrib:"",type:null,smg:null},
-  {row:13,si:"SI 1.1",output:"Output 1.1.3",activity:"Develop early warning protocols in 7 communities through community workshops",owner:"Programmes",contrib:"",type:null,smg:null},
+  {row:13,si:"SI 1.1",output:"Output 1.1.3",activity:"Develop early warning protocols in 7 communities through community workshops (Nepal and Ethiopia under LRF)",owner:"Programmes",contrib:"",type:null,smg:null},
   {row:14,si:"SI 1.1",output:"Output 1.1.3",activity:"Deliver nature-based solutions under the Pacific Circle project (Tonga & Kiribati)",owner:"Programmes",contrib:"Regional Leads, FRIMCO, Operations, Policy",type:"N",smg:"S/M"},
   {row:15,si:"SI 1.2",output:"Output 1.2.1",activity:"Conduct participatory needs and baseline assessments under the Kiwa project",owner:"Programmes",contrib:"",type:null,smg:null},
   {row:16,si:"SI 1.2",output:"Output 1.2.1",activity:"Conduct needs assessment under the Climate-Smart Landslide Detection project (Kyrgyzstan)",owner:"Programmes",contrib:"",type:null,smg:null},
@@ -64,7 +64,7 @@ const ACTIVITIES = [
   {row:30,si:"SI 2.2",output:"Output 2.2.2",activity:"Collaborate with UNDRR (SEM, Sendai and post-Sendai) to advance shared advocacy positions",owner:"Policy",contrib:"Regional Leads",type:null,smg:null},
   {row:31,si:"SI 2.2",output:"Output 2.2.2",activity:"Engage in UNFCCC SB64 and COP31 to advance shared advocacy positions",owner:"Policy",contrib:"Regional Leads, FRIMCO",type:null,smg:null},
   {row:32,si:"SI 2.2",output:"Output 2.2.2",activity:"Engage in EU, South Asia, Africa and LAC regional policy forums to advance shared advocacy positions",owner:"Policy",contrib:"Regional Leads, FRIMCO",type:null,smg:null},
-  {row:33,si:"SI 2.2",output:"Output 2.2.2",activity:"Profile and position GNDR in adjacent (non-DRR) strategic spaces",note:"Adjacent agendas where GNDR is active but can be recognised for more than DRR: climate (COPs), early action (REAP), development/localisation and civic space (e.g. Concord). We can target 2+ spaces where GNDR contributes evidence or shapes the conversation; specific priority spaces to be agreed in a planning discussion.",owner:"FRIMCO",contrib:"Policy, Regional Leads",type:"N",smg:"S/M/G"},
+  {row:33,si:"SI 2.2",output:"Output 2.2.2",activity:"Profile and position GNDR in adjacent (non-DRR) strategic spaces",note:"Adjacent agendas where GNDR is active but can be recognised for more than DRR: climate (COPs), early action (REAP), development/localisation and civic space (e.g. Concord).",owner:"FRIMCO",contrib:"Policy, Regional Leads",type:"N",smg:"S/M/G"},
   {row:34,si:"SI 2.2",output:"Output 2.2.2",activity:"Engage with the REAP board and its policy work",owner:"ED + Policy",contrib:"FRIMCO, Programmes, Regional Leads",type:null,smg:null},
   {row:35,si:"SI 2.2",output:"Output 2.2.2",activity:"Engage in SOFF processes and with Concord and Bond UK",owner:"ED",contrib:"Policy, Programmes",type:null,smg:null},
   {row:36,si:"SI 2.2",output:"Output 2.2.3",activity:"Use disaster risk financing research findings in advocacy",owner:"Policy",contrib:"FRIMCO, Programmes",type:null,smg:null},
@@ -1024,6 +1024,11 @@ function ActivityRow({ activity, updates, onOpenQuarter, expanded, onToggle, ide
             <span className="text-xs" style={{ color: C.muted }}>
               {activity.output}{outputInfo ? ` — ${outputInfo.short}` : ""}
             </span>
+            {activity.owner.includes(" + ") && (
+              <span className="text-xs font-semibold" style={{ color: C.inkSoft }}>
+                · Co-owners: {activity.owner.split(" + ").map((n) => n.trim()).join(" & ")}
+              </span>
+            )}
             {contributors.length > 0 && (
               <span className="text-xs" style={{ color: C.muted }}>
                 · with {contributors.join(", ")}
