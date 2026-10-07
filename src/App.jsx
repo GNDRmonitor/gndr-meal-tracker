@@ -2415,15 +2415,45 @@ function computeCountryStats(projects, activities, activityMeta) {
     .sort((a, b) => (b.projects + b.activities) - (a.projects + a.activities));
 }
 
+// One row per project for the Overview's "By project" view. Projects are
+// not linked to work-plan activities, so there is no activities count here.
+function computeProjectStats(projects) {
+  return projects
+    .map((p) => {
+      const countries = [...new Set(splitList(p.countries).map(normCountry))];
+      const regions = [...new Set(countries.map((c) => REGION_LOOKUP[c]).filter(Boolean))];
+      return {
+        id: p.project_id,
+        name: p.project_name || "Untitled project",
+        regions: regions.join(", ") || "—",
+        phase: p.phase || "—",
+        duration: p.duration || "—",
+        countryNames: countries.join(", "),
+        countries: countries.length,
+        members: new Set(splitList(p.members)).size,
+        donors: new Set(splitList(p.donor)).size,
+        partners: new Set(splitList(p.partners)).size,
+      };
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
 function pct(n, total) {
   if (!total) return null;
   return Math.round((n / total) * 1000) / 10;
 }
 
 function RegionalOverview({ projects, activities, activityMeta }) {
-  const [view, setView] = useState("region"); // region | country
+  const [view, setView] = useState("region"); // region | country | project
   const { rows, totals } = useMemo(() => computeRegionStats(projects, activities, activityMeta), [projects, activities, activityMeta]);
   const countryRows = useMemo(() => computeCountryStats(projects, activities, activityMeta), [projects, activities, activityMeta]);
+  const projectRows = useMemo(() => computeProjectStats(projects), [projects]);
+  const projectStatDefs = [
+    { key: "countries", label: "Countries" },
+    { key: "members", label: "Members" },
+    { key: "donors", label: "Donors" },
+    { key: "partners", label: "Partners" },
+  ];
 
   const statDefs = [
     { key: "projects", label: "Projects" },
@@ -2438,7 +2468,7 @@ function RegionalOverview({ projects, activities, activityMeta }) {
       <div className="flex items-center justify-between mb-2">
         <div className="text-[13px] font-bold" style={{ color: MT.tealInk }}>Overview</div>
         <div className="flex gap-1.5">
-          {[["region", "By region"], ["country", "By country"]].map(([id, label]) => (
+          {[["region", "By region"], ["country", "By country"], ["project", "By project"]].map(([id, label]) => (
             <button
               key={id}
               onClick={() => setView(id)}
@@ -2476,6 +2506,42 @@ function RegionalOverview({ projects, activities, activityMeta }) {
             </div>
           ))}
         </div>
+      ) : view === "project" ? (
+        projectRows.length === 0 ? (
+          <p style={{ fontSize: 14, color: MT.muted }}>No projects added yet.</p>
+        ) : (
+          <div className="rounded-2xl overflow-x-auto" style={{ border: `1px solid ${MT.hair}` }}>
+            <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
+              <thead>
+                <tr style={{ background: "#F4F8F9" }}>
+                  <th className="text-left px-3 py-2 font-semibold" style={{ fontSize: 12.5, color: MT.muted }}>Project</th>
+                  <th className="text-left px-3 py-2 font-semibold" style={{ fontSize: 12.5, color: MT.muted }}>Region</th>
+                  <th className="text-left px-3 py-2 font-semibold" style={{ fontSize: 12.5, color: MT.muted }}>Phase</th>
+                  <th className="text-left px-3 py-2 font-semibold" style={{ fontSize: 12.5, color: MT.muted }}>Duration</th>
+                  {projectStatDefs.map((s) => (
+                    <th key={s.key} className="text-right px-3 py-2 font-semibold" style={{ fontSize: 12.5, color: MT.muted }}>{s.label}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {projectRows.map((r) => (
+                  <tr key={r.id} style={{ borderTop: `1px solid ${MT.hair}` }}>
+                    <td className="px-3 py-2" style={{ fontSize: 13.5, color: MT.ink, fontWeight: 500 }}>
+                      {r.name}
+                      {r.countryNames && <div style={{ fontSize: 12, color: MT.muted, fontWeight: 400, marginTop: 2 }}>{r.countryNames}</div>}
+                    </td>
+                    <td className="px-3 py-2" style={{ fontSize: 13, color: MT.muted }}>{r.regions}</td>
+                    <td className="px-3 py-2" style={{ fontSize: 13, color: MT.muted }}>{r.phase}</td>
+                    <td className="px-3 py-2 whitespace-nowrap" style={{ fontSize: 13, color: MT.muted }}>{r.duration}</td>
+                    {projectStatDefs.map((s) => (
+                      <td key={s.key} className="px-3 py-2 text-right" style={{ fontSize: 13.5, color: MT.tealDark, fontWeight: 600 }}>{r[s.key]}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )
       ) : (
         countryRows.length === 0 ? (
           <p style={{ fontSize: 14, color: MT.muted }}>No countries tagged on any project or activity yet.</p>
