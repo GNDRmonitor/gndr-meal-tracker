@@ -41,12 +41,12 @@ const ACTIVITIES = [
   {row:8,si:"SI 1.1",output:"Output 1.1.3",activity:"Deliver community-led landslide resilience under the LRF project (Ethiopia & Nepal)",owner:"Programmes",contrib:"Regional Leads, FRIMCO, Operations, Policy",type:"N",smg:"S/M"},
   {row:9,si:"SI 1.1",output:"Output 1.1.3",activity:"Produce Stakeholder Needs Assessment reports for Nepal and Ethiopia (2 reports)",owner:"Programmes",contrib:"",type:null,smg:null},
   {row:10,si:"SI 1.1",output:"Output 1.1.3",activity:"Capacity building of local actors on early warnings and early action — Nepal & Ethiopia (7 communities)",owner:"Programmes",contrib:"",type:null,smg:null},
-  {row:11,si:"SI 1.1",output:"Output 1.1.3",activity:"Deliver the Harnessing Technology for Climate-Smart Landslide Detection project — Kyrgyzstan",owner:"Programmes",contrib:"Regional Leads, FRIMCO, Operations, Policy",type:"N",smg:"S/M"},
-  {row:12,si:"SI 1.1",output:"Output 1.1.3",activity:"Run community surveys and consultations in 5 communities (needs and feasibility assessment)",owner:"Programmes",contrib:"",type:null,smg:null},
+  {row:11,si:"SI 1.1",output:"Output 1.1.3",activity:"Deliver the Harnessing Technology for Climate-Smart Landslide Detection project — Kyrgyzstan",target:"At least 5 additional locally led risk-informed resilience solutions co-designed, tested and validated through the Climate-Smart Landslide Detection work in Kyrgyzstan",owner:"Programmes",contrib:"Regional Leads, FRIMCO, Operations, Policy",type:"N",smg:"S/M"},
+  {row:12,si:"SI 1.1",output:"Output 1.1.3",activity:"Run community surveys and consultations in 5 communities (needs and feasibility assessment)",target:"At least 5 additional locally led risk-informed resilience solutions co-designed, tested and validated through the Climate-Smart Landslide Detection work in Kyrgyzstan",owner:"Programmes",contrib:"",type:null,smg:null},
   {row:13,si:"SI 1.1",output:"Output 1.1.3",activity:"Develop early warning protocols in 7 communities through community workshops (Nepal and Ethiopia under LRF)",owner:"Programmes",contrib:"",type:null,smg:null},
   {row:14,si:"SI 1.1",output:"Output 1.1.3",activity:"Deliver nature-based solutions under the Pacific Circle project (Tonga & Kiribati)",owner:"Programmes",contrib:"Regional Leads, FRIMCO, Operations, Policy",type:"N",smg:"S/M"},
   {row:15,si:"SI 1.2",output:"Output 1.2.1",activity:"Conduct participatory needs and baseline assessments under the Kiwa project",owner:"Programmes",contrib:"",type:null,smg:null},
-  {row:16,si:"SI 1.2",output:"Output 1.2.1",activity:"Conduct needs assessment under the Climate-Smart Landslide Detection project (Kyrgyzstan)",owner:"Programmes",contrib:"",type:null,smg:null},
+  {row:16,si:"SI 1.2",output:"Output 1.2.1",activity:"Conduct needs assessment under the Climate-Smart Landslide Detection project (Kyrgyzstan)",target:"5 co-creation workshops/participatory consultations held under the Climate-Smart Landslide Detection project work in Kyrgyzstan in 2026-27, reaching 5 communities and 2,000+ people, plus community survey/baseline work in Kiribati and Tonga (2,800 people). Total Year 1: at least 5 communities and 4,800+ people reached.",owner:"Programmes",contrib:"",type:null,smg:null},
   {row:18,si:"SI 1.2",output:"Output 1.2.2",activity:"Develop and validate the REAP systems-mapping initiative, and build new partnerships and collaborations to act on it",owner:"FRIMCO",contrib:"Policy",type:null,smg:null},
   {row:19,si:"SI 1.2",output:"Output 1.2.3",activity:"Produce policy briefs for COP31",owner:"Policy",contrib:"Programmes, Membership Engagement, Regional Leads, FRIMCO",type:"N",smg:"S/M/G"},
   {row:20,si:"SI 1.2",output:"Output 1.2.3",activity:"Contribute member evidence and positions to PPED discussions",owner:"Policy",contrib:"Regional Leads, FRIMCO",type:null,smg:null},
@@ -193,6 +193,7 @@ const C = {
   greenLightBg: "#E4FAEF",
   greenDeep: "#198450",
   greenDeepBg: "#DFEEE6",
+  notStarted: "#6E7FB0", notStartedBg: "#E8EBF5",
   amber: "#E85D04",
   amberBg: "#FCE8DC",
   red: "#D00000",
@@ -200,7 +201,18 @@ const C = {
   muted: "#8A8F91",
 };
 
+// A quarter the owner has explicitly marked as "not started yet" — kept
+// separate from a quarter nobody has filled in ("Not yet reported").
+const NOT_STARTED = "not-started";
+function quarterValue(u) {
+  if (!u) return null;
+  if (u.notStarted) return NOT_STARTED;
+  return u.confidence ?? null;
+}
+const isScore = (v) => typeof v === "number" && !Number.isNaN(v);
+
 function confidenceInfo(v) {
+  if (v === NOT_STARTED) return { label: "Not started", color: C.notStarted, bg: C.notStartedBg };
   if (v == null) return { label: "Not yet reported", color: C.muted, bg: C.lineSoft };
   if (v <= 3) return { label: "Off track", color: C.red, bg: C.redBg };
   if (v <= 5) return { label: "At risk", color: C.amber, bg: C.amberBg };
@@ -222,7 +234,7 @@ function QuarterTrack({ statuses, size = "sm" }) {
         return (
           <React.Fragment key={q}>
             <div
-              title={`${q}: ${info.label}${v ? ` (${v}/10)` : ""}`}
+              title={`${q}: ${info.label}${isScore(v) ? ` (${v}/10)` : ""}`}
               style={{
                 width: dim, height: dim, borderRadius: 999,
                 background: v != null ? info.bg : "transparent",
@@ -570,20 +582,24 @@ function UpdateDrawer({ activity, quarter, existing, onClose, onSave, identity, 
   // an unrelated field (like Plan) never silently writes that 6 to the
   // sheet over a confidence that was deliberately left blank.
   const [confidenceTouched, setConfidenceTouched] = useState(existing?.confidence != null);
+  // "This activity hasn't started yet this quarter" — an explicit answer,
+  // distinct from simply not having filled the quarter in.
+  const [notStarted, setNotStarted] = useState(Boolean(existing?.notStarted));
   const [saving, setSaving] = useState(false);
   const [expanded, setExpanded] = useState(null); // null | "plan" | "whatHappened" | "adaptation"
 
   const contributors = splitList(activity.contrib);
   const [myComment, setMyComment] = useState(existing?.contributorComments?.[identity.team] || "");
 
-  const info = confidenceInfo(confidenceTouched ? confidence : null);
+  const info = confidenceInfo(notStarted ? NOT_STARTED : confidenceTouched ? confidence : null);
 
   const handleSave = async () => {
     setSaving(true);
     if (isOwnerMode) {
       await onSave({
         plan: cleanBulletText(plan), whatHappened: cleanBulletText(whatHappened), adaptation: cleanBulletText(adaptation),
-        confidence: confidenceTouched ? confidence : (existing?.confidence ?? null),
+        confidence: notStarted ? null : confidenceTouched ? confidence : (existing?.confidence ?? null),
+        notStarted,
         contributorComments: existing?.contributorComments || {},
         updatedBy: identity.name, updatedTeam: identity.team,
         updatedAt: new Date().toISOString(),
@@ -636,7 +652,7 @@ function UpdateDrawer({ activity, quarter, existing, onClose, onSave, identity, 
           {(() => {
             const outputId = activity.output.replace("Output ", "");
             const siId = outputId.split(".").slice(0, 2).join(".");
-            const target = OUTPUTS.find((o) => o.id === outputId)?.y1;
+            const target = activity.target || OUTPUTS.find((o) => o.id === outputId)?.y1;
             const indicators = (SI_DASHBOARD.find((s) => s.si === siId)?.indicators || [])
               .filter((ind) => ind.coverage.some((c) => c.output === outputId && ratingInfo(c.rating).weight > 0));
             if (!target && indicators.length === 0) return null;
@@ -763,10 +779,26 @@ function UpdateDrawer({ activity, quarter, existing, onClose, onSave, identity, 
                 Confidence that this quarter's activities will contribute to the annual target
               </label>
               <Pill color={info.color} bg={info.bg}>
-                {confidenceTouched ? `${confidence}/10 · ${info.label}` : info.label}
+                {!notStarted && confidenceTouched ? `${confidence}/10 · ${info.label}` : info.label}
               </Pill>
             </div>
-            {isOwnerMode ? (
+            {isOwnerMode && (
+              <label className="flex items-start gap-2 text-sm mb-2.5 cursor-pointer select-none" style={{ color: C.ink }}>
+                <input
+                  type="checkbox"
+                  checked={notStarted}
+                  onChange={(e) => setNotStarted(e.target.checked)}
+                  className="mt-0.5"
+                  style={{ accentColor: C.notStarted }}
+                />
+                <span>This activity hasn't started yet this quarter</span>
+              </label>
+            )}
+            {notStarted ? (
+              <p className="text-xs" style={{ color: C.notStarted }}>
+                Marked as not started for {quarter} — no confidence score is needed. It will show as "Not started" in the tracker, separate from "Not yet reported".
+              </p>
+            ) : isOwnerMode ? (
               <>
                 <input
                   type="range"
@@ -999,7 +1031,7 @@ function MembersField({ activity, meta, onSetMembers }) {
 function ActivityRow({ activity, updates, onOpenQuarter, expanded, onToggle, identity, meta, onSetTypeSmg, onSetCountries, onSetMembers, mode = "owner" }) {
   const statuses = {};
   QUARTERS.forEach((q) => {
-    statuses[q] = updates?.[q]?.confidence ?? null;
+    statuses[q] = quarterValue(updates?.[q]);
   });
   const contributors = splitList(activity.contrib);
   const outputInfo = getOutputInfo(activity.output);
@@ -1042,12 +1074,12 @@ function ActivityRow({ activity, updates, onOpenQuarter, expanded, onToggle, ide
 
       {expanded && (
         <div className="pb-4 pl-7">
-          {outputInfo?.y1 && (
+          {(activity.target || outputInfo?.y1) && (
             <div
               className="text-xs leading-relaxed mb-3 px-3 py-2 rounded-md"
               style={{ background: C.tealTint, color: C.tealDeep }}
             >
-              <span className="font-semibold">This contributes to — 2026-27 target: </span>{outputInfo.y1}
+              <span className="font-semibold">This contributes to — 2026-27 target: </span>{activity.target || outputInfo.y1}
             </div>
           )}
           <div className="mb-2.5 flex flex-wrap gap-2">
@@ -1066,7 +1098,7 @@ function ActivityRow({ activity, updates, onOpenQuarter, expanded, onToggle, ide
                   style={{ border: `1.5px solid ${v != null ? info.color : C.line}`, color: v != null ? info.color : C.inkSoft }}
                 >
                   {v != null ? <CheckCircle2 size={13} /> : <Circle size={13} />}
-                  {q} {v != null ? `· ${v}/10` : mode === "contributor" ? "· add comment" : "· log update"}
+                  {q} {v === NOT_STARTED ? "· not started" : v != null ? `· ${v}/10` : mode === "contributor" ? "· add comment" : "· log update"}
                 </button>
               );
             })}
@@ -1271,7 +1303,7 @@ function latestConfidence(rowUpdates) {
     const u = rowUpdates[q];
     if (u?.updatedAt) {
       const d = new Date(u.updatedAt);
-      if (!latest || d > latest) { latest = d; latestConf = u.confidence; }
+      if (!latest || d > latest) { latest = d; latestConf = quarterValue(u); }
     }
   });
   return latestConf;
@@ -1282,6 +1314,7 @@ function latestConfidence(rowUpdates) {
 // buckets are built from confidenceInfo(...).label (see statusCounts below).
 const STATUS_BUCKETS = [
   { label: "Not yet reported", color: C.muted, bg: C.lineSoft },
+  { label: "Not started", color: C.notStarted, bg: C.notStartedBg },
   { label: "Off track", color: C.red, bg: C.redBg },
   { label: "At risk", color: C.amber, bg: C.amberBg },
   { label: "Moderate", color: C.greenLight, bg: C.greenLightBg },
@@ -1293,15 +1326,16 @@ function QuarterProgressCards({ updates }) {
   const total = ACTIVITIES.length;
 
   const cards = QUARTERS.map((q) => {
-    const reported = ACTIVITIES.filter((a) => updates[a.row]?.[q]).length;
+    const reported = ACTIVITIES.filter((a) => updates[a.row]?.[q] && !updates[a.row][q].notStarted).length;
+    const notStarted = ACTIVITIES.filter((a) => updates[a.row]?.[q]?.notStarted).length;
     const onTrack = ACTIVITIES.filter((a) => {
-      const conf = updates[a.row]?.[q]?.confidence;
-      return conf != null && conf >= 8;
+      const conf = quarterValue(updates[a.row]?.[q]);
+      return isScore(conf) && conf >= 8;
     }).length;
     return {
       label: q,
       big: reported > 0 ? `${Math.round((reported / total) * 100)}%` : "0%",
-      sub: `${reported}/${total} reported · ${onTrack} on track`,
+      sub: `${reported}/${total} reported · ${onTrack} on track${notStarted ? ` · ${notStarted} not started` : ""}`,
     };
   });
 
@@ -1407,12 +1441,12 @@ function ActivityDetailModal({ activity, updates, meta, onClose }) {
             </div>
             <div className="text-base font-bold" style={{ color: C.ink }}>{activity.activity}</div>
             <ActivityNote activity={activity} />
-            {outputInfo?.y1 && (
+            {(activity.target || outputInfo?.y1) && (
               <div
                 className="text-xs leading-relaxed mt-2 px-3 py-2 rounded-md"
                 style={{ background: C.tealTint, color: C.tealDeep }}
               >
-                <span className="font-semibold">2026-27 target — </span>{outputInfo.y1}
+                <span className="font-semibold">2026-27 target — </span>{activity.target || outputInfo.y1}
               </div>
             )}
           </div>
@@ -1450,12 +1484,13 @@ function ActivityDetailModal({ activity, updates, meta, onClose }) {
             <div className="space-y-2 mt-2">
               {QUARTERS.map((q) => {
                 const u = updates?.[q];
-                const info = confidenceInfo(u?.confidence);
+                const qv = quarterValue(u);
+                const info = confidenceInfo(qv);
                 return (
                   <div key={q} className="rounded-md p-2.5" style={{ background: C.paper, border: `1px solid ${C.lineSoft}` }}>
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-xs font-bold" style={{ color: C.ink }}>{q}</span>
-                      <Pill color={info.color} bg={info.bg}>{u?.confidence != null ? `${u.confidence}/10 · ${info.label}` : info.label}</Pill>
+                      <Pill color={info.color} bg={info.bg}>{isScore(qv) ? `${qv}/10 · ${info.label}` : info.label}</Pill>
                     </div>
                     {u?.plan && (
                       <div className="text-xs mb-1.5" style={{ color: C.inkSoft }}>
@@ -1527,8 +1562,7 @@ function AllActivitiesView({ updates, projects, activityMeta, identity, onSavePr
 
   const confidenceFor = (row) => {
     if (quarterFilter === "Latest" || quarterFilter === "All") return latestConfidence(updates[row]);
-    const q = updates[row]?.[quarterFilter];
-    return q ? q.confidence : null;
+    return quarterValue(updates[row]?.[quarterFilter]);
   };
 
   // SI filter applied first (used for the team-count badges, so they reflect
@@ -1622,11 +1656,11 @@ function AllActivitiesView({ updates, projects, activityMeta, identity, onSavePr
                 ))}
               </div>
             </div>
-            <ResponsiveContainer width="100%" height={160}>
+            <ResponsiveContainer width="100%" height={200}>
               <BarChart data={statusCounts} layout="vertical" margin={{ top: 0, right: 16, left: 0, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke={C.lineSoft} horizontal={false} />
                 <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11, fill: C.muted }} axisLine={{ stroke: C.line }} tickLine={false} />
-                <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: C.inkSoft }} axisLine={false} tickLine={false} width={100} />
+                <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: C.inkSoft }} axisLine={false} tickLine={false} width={100} interval={0} />
                 <Tooltip contentStyle={{ fontSize: 12, borderRadius: 6, border: `1px solid ${C.line}` }} />
                 <Bar
                   dataKey="value"
@@ -1719,11 +1753,11 @@ function AllActivitiesView({ updates, projects, activityMeta, identity, onSavePr
                       <td className="px-3 py-2 whitespace-nowrap align-top">
                         {quarterFilter === "All" ? (
                           <QuarterTrack
-                            statuses={Object.fromEntries(QUARTERS.map((q) => [q, updates[a.row]?.[q]?.confidence ?? null]))}
+                            statuses={Object.fromEntries(QUARTERS.map((q) => [q, quarterValue(updates[a.row]?.[q])]))}
                           />
                         ) : (
                           <Pill color={info.color} bg={info.bg}>
-                            {conf != null ? `${conf}/10 · ${info.label}` : info.label}
+                            {isScore(conf) ? `${conf}/10 · ${info.label}` : info.label}
                           </Pill>
                         )}
                       </td>
@@ -3441,6 +3475,7 @@ export default function App() {
         u[r.activity_row][r.quarter] = {
           plan: r.plan, whatHappened: r.what_happened, adaptation: r.adaptation,
           confidence: r.confidence === "" ? null : Number(r.confidence),
+          notStarted: r.not_started === true || String(r.not_started || "").toLowerCase() === "yes",
           contributorComments,
           updatedBy: r.updated_by, updatedTeam: "", updatedAt: r.updated_at,
         };
@@ -3513,7 +3548,7 @@ export default function App() {
     await setActivityUpdate({
       activityRow: row, quarter,
       plan: payload.plan, whatHappened: payload.whatHappened, adaptation: payload.adaptation,
-      confidence: payload.confidence, contributorComments: payload.contributorComments,
+      confidence: payload.confidence, notStarted: Boolean(payload.notStarted), contributorComments: payload.contributorComments,
       activityName: activity?.activity || "", output: activity?.output || "",
       updatedBy: payload.updatedBy, updatedByEmail: identity?.email,
     });

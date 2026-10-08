@@ -62,7 +62,7 @@ export async function getAllActivityUpdates() {
 }
 
 export async function setActivityUpdate({
-  activityRow, quarter, plan, whatHappened, adaptation, confidence, contributorComments,
+  activityRow, quarter, plan, whatHappened, adaptation, confidence, notStarted, contributorComments,
   activityName, output, updatedBy, updatedByEmail,
 }) {
   try {
@@ -71,6 +71,7 @@ export async function setActivityUpdate({
       activity_row: activityRow, quarter, plan, what_happened: whatHappened,
       adaptation, confidence, contributor_comments: JSON.stringify(contributorComments || {}),
       activity_name: activityName, output,
+      not_started: notStarted ? "yes" : "",
       updated_by: updatedBy, updated_by_email: updatedByEmail,
     });
     return true;
