@@ -1295,18 +1295,18 @@ function lastUpdatedLabel(rowUpdates) {
   return latest;
 }
 
+// "Latest" status = the most recent quarter (Q4 → Q1) that actually has a
+// status — a confidence score or an explicit "Not started". A quarter that
+// only has text saved (e.g. next quarter's plan, written ahead of time) is
+// skipped, so planning ahead never turns a scored activity back into
+// "Not yet reported".
 function latestConfidence(rowUpdates) {
   if (!rowUpdates) return null;
-  let latest = null;
-  let latestConf = null;
-  QUARTERS.forEach((q) => {
-    const u = rowUpdates[q];
-    if (u?.updatedAt) {
-      const d = new Date(u.updatedAt);
-      if (!latest || d > latest) { latest = d; latestConf = quarterValue(u); }
-    }
-  });
-  return latestConf;
+  for (let i = QUARTERS.length - 1; i >= 0; i--) {
+    const v = quarterValue(rowUpdates[QUARTERS[i]]);
+    if (v != null) return v;
+  }
+  return null;
 }
 
 // Same palette as confidenceInfo() — kept in sync with it by referencing the
