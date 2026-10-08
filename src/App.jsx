@@ -41,12 +41,12 @@ const ACTIVITIES = [
   {row:8,si:"SI 1.1",output:"Output 1.1.3",activity:"Deliver community-led landslide resilience under the LRF project (Ethiopia & Nepal)",owner:"Programmes",contrib:"Regional Leads, FRIMCO, Operations, Policy",type:"N",smg:"S/M"},
   {row:9,si:"SI 1.1",output:"Output 1.1.3",activity:"Produce Stakeholder Needs Assessment reports for Nepal and Ethiopia (2 reports)",owner:"Programmes",contrib:"",type:null,smg:null},
   {row:10,si:"SI 1.1",output:"Output 1.1.3",activity:"Capacity building of local actors on early warnings and early action — Nepal & Ethiopia (7 communities)",owner:"Programmes",contrib:"",type:null,smg:null},
-  {row:11,si:"SI 1.1",output:"Output 1.1.3",activity:"Deliver the Harnessing Technology for Climate-Smart Landslide Detection project — Kyrgyzstan",target:"At least 5 additional locally led risk-informed resilience solutions co-designed, tested and validated through the Climate-Smart Landslide Detection work in Kyrgyzstan",owner:"Programmes",contrib:"Regional Leads, FRIMCO, Operations, Policy",type:"N",smg:"S/M"},
-  {row:12,si:"SI 1.1",output:"Output 1.1.3",activity:"Run community surveys and consultations in 5 communities (needs and feasibility assessment)",target:"At least 5 additional locally led risk-informed resilience solutions co-designed, tested and validated through the Climate-Smart Landslide Detection work in Kyrgyzstan",owner:"Programmes",contrib:"",type:null,smg:null},
+  {row:11,si:"SI 1.1",output:"Output 1.1.3",activity:"Deliver the Harnessing Technology for Climate-Smart Landslide Detection project — Kyrgyzstan",targetLabel:"Kyrgyzstan activities",target:"At least 5 additional locally led risk-informed resilience solutions co-designed, tested and validated through the Climate-Smart Landslide Detection work in Kyrgyzstan",owner:"Programmes",contrib:"Regional Leads, FRIMCO, Operations, Policy",type:"N",smg:"S/M"},
+  {row:12,si:"SI 1.1",output:"Output 1.1.3",activity:"Run community surveys and consultations in 5 communities (needs and feasibility assessment)",targetLabel:"Kyrgyzstan activities",target:"At least 5 additional locally led risk-informed resilience solutions co-designed, tested and validated through the Climate-Smart Landslide Detection work in Kyrgyzstan",owner:"Programmes",contrib:"",type:null,smg:null},
   {row:13,si:"SI 1.1",output:"Output 1.1.3",activity:"Develop early warning protocols in 7 communities through community workshops (Nepal and Ethiopia under LRF)",owner:"Programmes",contrib:"",type:null,smg:null},
   {row:14,si:"SI 1.1",output:"Output 1.1.3",activity:"Deliver nature-based solutions under the Pacific Circle project (Tonga & Kiribati)",owner:"Programmes",contrib:"Regional Leads, FRIMCO, Operations, Policy",type:"N",smg:"S/M"},
   {row:15,si:"SI 1.2",output:"Output 1.2.1",activity:"Conduct participatory needs and baseline assessments under the Kiwa project",owner:"Programmes",contrib:"",type:null,smg:null},
-  {row:16,si:"SI 1.2",output:"Output 1.2.1",activity:"Conduct needs assessment under the Climate-Smart Landslide Detection project (Kyrgyzstan)",target:"5 co-creation workshops/participatory consultations held under the Climate-Smart Landslide Detection project work in Kyrgyzstan in 2026-27, reaching 5 communities and 2,000+ people, plus community survey/baseline work in Kiribati and Tonga (2,800 people). Total Year 1: at least 5 communities and 4,800+ people reached.",owner:"Programmes",contrib:"",type:null,smg:null},
+  {row:16,si:"SI 1.2",output:"Output 1.2.1",activity:"Conduct needs assessment under the Climate-Smart Landslide Detection project (Kyrgyzstan)",targetLabel:"Kyrgyzstan activity",target:"5 co-creation workshops/participatory consultations held under the Climate-Smart Landslide Detection project work in Kyrgyzstan in 2026-27, reaching 5 communities and 2,000+ people, plus community survey/baseline work in Kiribati and Tonga (2,800 people). Total Year 1: at least 5 communities and 4,800+ people reached.",owner:"Programmes",contrib:"",type:null,smg:null},
   {row:18,si:"SI 1.2",output:"Output 1.2.2",activity:"Develop and validate the REAP systems-mapping initiative, and build new partnerships and collaborations to act on it",owner:"FRIMCO",contrib:"Policy",type:null,smg:null},
   {row:19,si:"SI 1.2",output:"Output 1.2.3",activity:"Produce policy briefs for COP31",owner:"Policy",contrib:"Programmes, Membership Engagement, Regional Leads, FRIMCO",type:"N",smg:"S/M/G"},
   {row:20,si:"SI 1.2",output:"Output 1.2.3",activity:"Contribute member evidence and positions to PPED discussions",owner:"Policy",contrib:"Regional Leads, FRIMCO",type:null,smg:null},
@@ -1950,7 +1950,19 @@ function TargetsView({ identity }) {
                               <div className="space-y-2 text-xs leading-relaxed">
                                 <div className="flex gap-2">
                                   <span className="shrink-0 font-semibold" style={{ color: C.amberBrand }}>2026-27</span>
-                                  <span style={{ color: C.inkSoft }}>{o.y1}</span>
+                                  <div style={{ color: C.inkSoft }}>
+                                    <div>{o.y1}</div>
+                                    {/* Activity-specific targets (e.g. Kyrgyzstan), listed under the Output's own target */}
+                                    {[...new Map(
+                                      ACTIVITIES
+                                        .filter((a) => a.target && a.output === `Output ${o.id}`)
+                                        .map((a) => [a.target, a.targetLabel || "Specific activities"])
+                                    )].map(([t, label]) => (
+                                      <div key={t} className="mt-1.5">
+                                        <span className="font-semibold" style={{ color: C.ink }}>{label}: </span>{t}
+                                      </div>
+                                    ))}
+                                  </div>
                                 </div>
                                 <div className="flex gap-2">
                                   <span className="shrink-0 font-semibold" style={{ color: C.teal }}>2027-30</span>
